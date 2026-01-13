@@ -15,11 +15,21 @@ struct LoadedTable: Identifiable {
     let displayName: String    // 原始文件名（用于显示）
     let dataFrame: DataFrame
     let sourceURL: URL
+    let isTruncated: Bool      // 是否被截断
+    let originalRowCount: Int? // 原始行数（如果被截断）
     
     var rowCount: Int { dataFrame.rows.count }
     var columnCount: Int { dataFrame.columns.count }
     var columnNames: [String] { dataFrame.columns.map { $0.name } }
     var columnTypes: [ColumnType] { dataFrame.columns.map { $0.type } }
+    
+    // 显示的行数信息
+    var rowCountDisplay: String {
+        if isTruncated, let original = originalRowCount {
+            return "\(rowCount)/\(original)"
+        }
+        return "\(rowCount)"
+    }
 }
 
 /// 持久化的表信息（用于保存到 UserDefaults）
@@ -96,7 +106,14 @@ class MainViewModel: ObservableObject {
                         self.tableCounter += 1
                         let tableName = "table\(self.tableCounter)"
                         let displayName = url.deletingPathExtension().lastPathComponent
-                        let table = LoadedTable(name: tableName, displayName: displayName, dataFrame: df, sourceURL: url)
+                        let table = LoadedTable(
+                            name: tableName,
+                            displayName: displayName,
+                            dataFrame: df,
+                            sourceURL: url,
+                            isTruncated: false,
+                            originalRowCount: nil
+                        )
                         self.loadedTables.append(table)
                         self.selectedTableId = table.id
                         self.saveTables()  // 保存到持久化存储
@@ -119,7 +136,7 @@ class MainViewModel: ObservableObject {
         
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             do {
-                let dataFrame = try ClipboardLoader.loadFromClipboard()
+                let (dataFrame, isTruncated, originalRowCount) = try ClipboardLoader.loadFromClipboard()
                 
                 DispatchQueue.main.async {
                     guard let self = self else { return }
@@ -135,7 +152,9 @@ class MainViewModel: ObservableObject {
                         name: tableName,
                         displayName: displayName,
                         dataFrame: dataFrame,
-                        sourceURL: tempURL
+                        sourceURL: tempURL,
+                        isTruncated: isTruncated,
+                        originalRowCount: isTruncated ? originalRowCount : nil
                     )
                     self.loadedTables.append(table)
                     self.selectedTableId = table.id
@@ -241,7 +260,9 @@ class MainViewModel: ObservableObject {
                     name: persistedTable.name,
                     displayName: persistedTable.displayName,
                     dataFrame: dataFrame,
-                    sourceURL: url
+                    sourceURL: url,
+                    isTruncated: false,
+                    originalRowCount: nil
                 )
                 loadedTables.append(table)
                 

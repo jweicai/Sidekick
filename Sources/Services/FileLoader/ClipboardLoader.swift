@@ -11,8 +11,10 @@ import AppKit
 /// 剪贴板数据加载器 - 支持 Tab 分隔的表格数据
 struct ClipboardLoader {
     
+    static let maxRows = 1000  // 最大行数限制
+    
     /// 从剪贴板加载数据
-    static func loadFromClipboard() throws -> DataFrame {
+    static func loadFromClipboard() throws -> (dataFrame: DataFrame, isTruncated: Bool, originalRowCount: Int) {
         let pasteboard = NSPasteboard.general
         
         guard let string = pasteboard.string(forType: .string), !string.isEmpty else {
@@ -23,7 +25,7 @@ struct ClipboardLoader {
     }
     
     /// 解析 Tab 分隔的数据
-    private static func parseTabDelimitedData(_ data: String) throws -> DataFrame {
+    private static func parseTabDelimitedData(_ data: String) throws -> (dataFrame: DataFrame, isTruncated: Bool, originalRowCount: Int) {
         let lines = data.components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
@@ -32,9 +34,15 @@ struct ClipboardLoader {
             throw ClipboardLoaderError.noData
         }
         
+        let originalRowCount = lines.count
+        let isTruncated = originalRowCount > maxRows
+        
+        // 如果超过最大行数，只取前 maxRows 行
+        let linesToProcess = isTruncated ? Array(lines.prefix(maxRows)) : lines
+        
         // 解析所有行
         var rows: [[String]] = []
-        for line in lines {
+        for line in linesToProcess {
             let cells = line.components(separatedBy: "\t")
             rows.append(cells)
         }
@@ -78,7 +86,8 @@ struct ClipboardLoader {
             columns.append(column)
         }
         
-        return DataFrame(columns: columns, rows: rows)
+        let dataFrame = DataFrame(columns: columns, rows: rows)
+        return (dataFrame, isTruncated, originalRowCount)
     }
 }
 

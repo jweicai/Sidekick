@@ -155,13 +155,23 @@ struct TableRowView: View {
                 
                 // 表信息
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(table.name)
-                        .font(DesignSystem.Typography.body)
-                        .fontWeight(isSelected ? .medium : .regular)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                        .lineLimit(1)
+                    HStack(spacing: 4) {
+                        Text(table.name)
+                            .font(DesignSystem.Typography.body)
+                            .fontWeight(isSelected ? .medium : .regular)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                            .lineLimit(1)
+                        
+                        // 截断提示标记
+                        if table.isTruncated {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.system(size: 9))
+                                .foregroundColor(DesignSystem.Colors.warning)
+                                .help("数据已截断：仅显示前 \(table.rowCount) 行，共 \(table.originalRowCount ?? 0) 行")
+                        }
+                    }
                     
-                    Text("\(table.displayName) · \(table.rowCount) × \(table.columnCount)")
+                    Text("\(table.displayName) · \(table.rowCountDisplay) × \(table.columnCount)")
                         .font(DesignSystem.Typography.caption)
                         .foregroundColor(DesignSystem.Colors.textMuted)
                         .lineLimit(1)
