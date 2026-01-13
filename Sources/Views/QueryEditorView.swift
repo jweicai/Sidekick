@@ -7,109 +7,184 @@
 
 import SwiftUI
 
-/// SQL 查询编辑器视图
+/// SQL 查询编辑器视图 - 现代风格
 struct QueryEditorView: View {
     @ObservedObject var viewModel: QueryViewModel
+    @State private var editorHeight: CGFloat = 160
+    @State private var isDragging = false
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Query input area with toolbar
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                // Toolbar
-                HStack(spacing: DesignSystem.Spacing.md) {
-                    Text("SQL 查询")
-                        .font(DesignSystem.Typography.title3)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    Spacer()
-                    
-                    // 工具按钮
-                    HStack(spacing: DesignSystem.Spacing.xs) {
-                        // 执行按钮
-                        Button(action: { viewModel.executeQuery() }) {
-                            Label("执行", systemImage: "play.fill")
-                                .font(DesignSystem.Typography.body)
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                // SQL 编辑区域
+                VStack(alignment: .leading, spacing: 0) {
+                    // 工具栏
+                    HStack(spacing: DesignSystem.Spacing.md) {
+                        HStack(spacing: DesignSystem.Spacing.sm) {
+                            Image(systemName: "chevron.left.forwardslash.chevron.right")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(DesignSystem.Colors.accent)
+                            
+                            Text("SQL 查询")
+                                .font(DesignSystem.Typography.bodyMedium)
+                                .foregroundColor(DesignSystem.Colors.textPrimary)
                         }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        .disabled(viewModel.isExecuting)
-                        .keyboardShortcut(.return, modifiers: .command)
-                        .help("执行 SQL 查询 (⌘+Enter)")
                         
-                        // 保存查询按钮
-                        Button(action: { /* TODO: Save query */ }) {
-                            Image(systemName: "square.and.arrow.down")
-                                .font(DesignSystem.Typography.body)
-                        }
-                        .buttonStyle(.borderless)
-                        .help("保存查询")
+                        Spacer()
                         
-                        // 格式化按钮
-                        Button(action: { /* TODO: Format SQL */ }) {
-                            Image(systemName: "wand.and.stars")
-                                .font(DesignSystem.Typography.body)
+                        // 工具按钮
+                        HStack(spacing: DesignSystem.Spacing.sm) {
+                            // 格式化按钮
+                            ToolbarButton(icon: "wand.and.stars", tooltip: "格式化 SQL") {
+                                // TODO: Format SQL
+                            }
+                            
+                            // 保存查询按钮
+                            ToolbarButton(icon: "square.and.arrow.down", tooltip: "保存查询") {
+                                // TODO: Save query
+                            }
+                            
+                            Divider()
+                                .frame(height: 16)
+                            
+                            // 执行按钮
+                            Button(action: { viewModel.executeQuery() }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "play.fill")
+                                        .font(.system(size: 10))
+                                    Text("执行")
+                                        .font(DesignSystem.Typography.captionMedium)
+                                }
+                                .foregroundColor(.white)
+                                .padding(.horizontal, DesignSystem.Spacing.md)
+                                .padding(.vertical, 6)
+                                .background(
+                                    LinearGradient(
+                                        colors: [DesignSystem.Colors.success, DesignSystem.Colors.success.opacity(0.8)],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+                                .cornerRadius(DesignSystem.CornerRadius.medium)
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(viewModel.isExecuting)
+                            .keyboardShortcut(.return, modifiers: .command)
+                            .help(viewModel.selectedSQLText.isEmpty ? "执行 SQL 查询 (⌘+Enter)" : "执行选中的 SQL 查询 (⌘+Enter)")
                         }
-                        .buttonStyle(.borderless)
-                        .help("格式化 SQL")
                     }
-                }
-                .padding(.horizontal, DesignSystem.Spacing.lg)
-                .padding(.top, DesignSystem.Spacing.md)
-                
-                // SQL 编辑器 - 最简化版本
-                SQLTextEditor(text: $viewModel.sqlQuery)
-                    .frame(height: 150)
                     .padding(.horizontal, DesignSystem.Spacing.lg)
+                    .padding(.vertical, DesignSystem.Spacing.md)
+                    .background(DesignSystem.Colors.background)
+                    
+                    Divider()
+                    
+                    // SQL 编辑器
+                    SQLTextEditor(text: $viewModel.sqlQuery, selectedText: $viewModel.selectedSQLText)
+                        .frame(height: editorHeight)
+                }
+                
+                // 可拖动的分隔条
+                DraggableDivider(isDragging: $isDragging)
+                    .gesture(
+                        DragGesture()
+                            .onChanged { value in
+                                isDragging = true
+                                let newHeight = editorHeight + value.translation.height
+                                // 限制编辑器高度在 100 到 geometry.size.height - 200 之间
+                                editorHeight = min(max(newHeight, 100), geometry.size.height - 200)
+                            }
+                            .onEnded { _ in
+                                isDragging = false
+                            }
+                    )
+                
+                // 结果区域
+                if viewModel.isExecuting {
+                    LoadingResultsView()
+                } else if let errorMessage = viewModel.errorMessage {
+                    ErrorResultView(message: errorMessage)
+                } else if let result = viewModel.queryResult {
+                    QueryResultView(result: result, viewModel: viewModel)
+                } else {
+                    EmptyResultView()
+                }
             }
-            .padding(.bottom, DesignSystem.Spacing.md)
+            .background(DesignSystem.Colors.background)
+        }
+    }
+}
+
+/// 可拖动的分隔条
+struct DraggableDivider: View {
+    @Binding var isDragging: Bool
+    @State private var isHovering = false
+    
+    var body: some View {
+        ZStack {
+            Rectangle()
+                .fill(isDragging ? DesignSystem.Colors.accent : (isHovering ? DesignSystem.Colors.border : DesignSystem.Colors.borderLight))
+                .frame(height: isDragging ? 3 : 1)
             
-            Divider()
-            
-            // Results area
-            if viewModel.isExecuting {
-                LoadingResultsView()
-            } else if let errorMessage = viewModel.errorMessage {
-                ErrorResultView(message: errorMessage)
-            } else if let result = viewModel.queryResult {
-                QueryResultView(result: result, viewModel: viewModel)
+            // 拖动手柄区域（增加可点击区域）
+            Rectangle()
+                .fill(Color.clear)
+                .frame(height: 8)
+                .contentShape(Rectangle())
+        }
+        .frame(height: 8)
+        .onHover { hovering in
+            isHovering = hovering
+            if hovering {
+                NSCursor.resizeUpDown.push()
             } else {
-                EmptyResultView()
+                NSCursor.pop()
             }
         }
     }
 }
 
-/// 行号视图
-struct LineNumberView: View {
-    let lineCount: Int
+/// 工具栏按钮
+struct ToolbarButton: View {
+    let icon: String
+    let tooltip: String
+    let action: () -> Void
+    
+    @State private var isHovering = false
     
     var body: some View {
-        VStack(alignment: .trailing, spacing: 0) {
-            ForEach(1...max(1, lineCount), id: \.self) { lineNumber in
-                Text("\(lineNumber)")
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.textSecondary)
-                    .frame(height: 14.5)  // 匹配默认行高
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 13))
+                .foregroundColor(isHovering ? DesignSystem.Colors.accent : DesignSystem.Colors.textSecondary)
+                .frame(width: 28, height: 28)
+                .background(isHovering ? DesignSystem.Colors.accent.opacity(0.1) : Color.clear)
+                .cornerRadius(DesignSystem.CornerRadius.small)
+        }
+        .buttonStyle(.plain)
+        .help(tooltip)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovering = hovering
             }
         }
-        .padding(.vertical, DesignSystem.Spacing.sm)
-        .padding(.horizontal, 6)
-        .background(DesignSystem.Colors.secondaryBackground)
     }
 }
 
 /// 加载结果视图
 struct LoadingResultsView: View {
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: DesignSystem.Spacing.lg) {
             ProgressView()
                 .scaleEffect(1.2)
+                .tint(DesignSystem.Colors.accent)
             
             Text("正在执行查询...")
-                .font(.body)
-                .foregroundColor(.secondary)
+                .font(DesignSystem.Typography.body)
+                .foregroundColor(DesignSystem.Colors.textSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(DesignSystem.Colors.background)
     }
 }
 
@@ -118,43 +193,56 @@ struct ErrorResultView: View {
     let message: String
     
     var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 40))
-                .foregroundColor(.orange)
+        VStack(spacing: DesignSystem.Spacing.md) {
+            ZStack {
+                Circle()
+                    .fill(DesignSystem.Colors.warning.opacity(0.1))
+                    .frame(width: 60, height: 60)
+                
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.system(size: 24))
+                    .foregroundColor(DesignSystem.Colors.warning)
+            }
             
             Text("查询错误")
-                .font(.title3)
+                .font(DesignSystem.Typography.title3)
                 .fontWeight(.semibold)
             
             Text(message)
-                .font(.body)
-                .foregroundColor(.secondary)
+                .font(DesignSystem.Typography.body)
+                .foregroundColor(DesignSystem.Colors.textSecondary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
+                .padding(.horizontal, 60)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding()
+        .background(DesignSystem.Colors.background)
     }
 }
 
 /// 空结果视图
 struct EmptyResultView: View {
     var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "doc.text.magnifyingglass")
-                .font(.system(size: 50))
-                .foregroundColor(.gray)
+        VStack(spacing: DesignSystem.Spacing.md) {
+            ZStack {
+                Circle()
+                    .fill(DesignSystem.Colors.accent.opacity(0.1))
+                    .frame(width: 70, height: 70)
+                
+                Image(systemName: "text.magnifyingglass")
+                    .font(.system(size: 28))
+                    .foregroundColor(DesignSystem.Colors.accent)
+            }
             
             Text("准备就绪")
-                .font(.title3)
+                .font(DesignSystem.Typography.title3)
                 .fontWeight(.semibold)
             
             Text("输入 SQL 查询并点击执行")
-                .font(.body)
-                .foregroundColor(.secondary)
+                .font(DesignSystem.Typography.body)
+                .foregroundColor(DesignSystem.Colors.textSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(DesignSystem.Colors.background)
     }
 }
 
@@ -165,68 +253,55 @@ struct QueryResultView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Result info bar
+            // 结果信息栏
             HStack {
-                HStack(spacing: 12) {
-                    Text("\(result.rowCount) 行")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                HStack(spacing: DesignSystem.Spacing.md) {
+                    // 行数
+                    HStack(spacing: 4) {
+                        Image(systemName: "list.number")
+                            .font(.system(size: 11))
+                        Text("\(result.rowCount) 行")
+                    }
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
                     
-                    Text("•")
-                        .foregroundColor(.secondary)
-                    
-                    Text(String(format: "%.3f 秒", result.executionTime))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    // 执行时间
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock")
+                            .font(.system(size: 11))
+                        Text(String(format: "%.3f 秒", result.executionTime))
+                    }
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
                 }
                 
                 Spacer()
                 
-                // Export buttons
-                HStack(spacing: 8) {
-                    ExportButton(title: "导出 CSV", icon: "doc.text") {
+                // 导出按钮
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    ExportButton(title: "CSV", icon: "doc.text", color: DesignSystem.Colors.success) {
                         exportCSV()
                     }
                     
-                    ExportButton(title: "导出 JSON", icon: "curlybraces") {
+                    ExportButton(title: "JSON", icon: "curlybraces", color: DesignSystem.Colors.warning) {
                         exportJSON()
                     }
                     
-                    ExportButton(title: "生成 INSERT", icon: "text.insert") {
+                    ExportButton(title: "INSERT", icon: "text.insert", color: DesignSystem.Colors.info) {
                         generateInsert()
                     }
                 }
             }
-            .padding(.horizontal)
-            .padding(.vertical, 8)
-            .background(Color(NSColor.controlBackgroundColor))
+            .padding(.horizontal, DesignSystem.Spacing.lg)
+            .padding(.vertical, DesignSystem.Spacing.sm)
+            .background(DesignSystem.Colors.tableHeader)
             
             Divider()
             
-            // Result table
-            ScrollView([.horizontal, .vertical]) {
-                VStack(alignment: .leading, spacing: 0) {
-                    // Header row
-                    HStack(spacing: 0) {
-                        ForEach(Array(result.columns.enumerated()), id: \.offset) { index, column in
-                            ResultHeaderCell(text: column)
-                        }
-                    }
-                    
-                    // Data rows
-                    ForEach(0..<result.rowCount, id: \.self) { rowIndex in
-                        HStack(spacing: 0) {
-                            ForEach(0..<result.columns.count, id: \.self) { colIndex in
-                                ResultDataCell(
-                                    text: result.rows[rowIndex][colIndex],
-                                    isEvenRow: rowIndex % 2 == 0
-                                )
-                            }
-                        }
-                    }
-                }
-            }
+            // 使用 List 实现固定表头的表格
+            ResultTableView(result: result)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
     
     private func exportCSV() {
@@ -260,23 +335,31 @@ struct QueryResultView: View {
 struct ExportButton: View {
     let title: String
     let icon: String
+    let color: Color
     let action: () -> Void
+    
+    @State private var isHovering = false
     
     var body: some View {
         Button(action: action) {
             HStack(spacing: 4) {
                 Image(systemName: icon)
-                    .font(.caption)
+                    .font(.system(size: 10))
                 Text(title)
-                    .font(.caption)
+                    .font(DesignSystem.Typography.captionMedium)
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(Color.blue.opacity(0.1))
-            .foregroundColor(.blue)
-            .cornerRadius(6)
+            .foregroundColor(isHovering ? .white : color)
+            .padding(.horizontal, DesignSystem.Spacing.sm)
+            .padding(.vertical, 5)
+            .background(isHovering ? color : color.opacity(0.1))
+            .cornerRadius(DesignSystem.CornerRadius.small)
         }
         .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovering = hovering
+            }
+        }
     }
 }
 
@@ -286,16 +369,16 @@ struct ResultHeaderCell: View {
     
     var body: some View {
         Text(text)
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundColor(.primary)
-            .frame(width: 150, alignment: .leading)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Color(NSColor.controlBackgroundColor))
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundColor(DesignSystem.Colors.textPrimary)
+            .frame(minWidth: 100, maxWidth: 200, alignment: .leading)
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .padding(.vertical, DesignSystem.Spacing.sm)
+            .background(DesignSystem.Colors.tableHeader)
             .overlay(
                 Rectangle()
-                    .frame(width: 1, height: nil, alignment: .trailing)
-                    .foregroundColor(Color.gray.opacity(0.2)),
+                    .frame(width: 1)
+                    .foregroundColor(DesignSystem.Colors.border),
                 alignment: .trailing
             )
     }
@@ -306,25 +389,152 @@ struct ResultDataCell: View {
     let text: String
     let isEvenRow: Bool
     
+    @State private var isHovering = false
+    
     var isNull: Bool {
         text.isEmpty
     }
     
+    // 检测数据类型
+    var cellType: CellType {
+        if isNull { return .null }
+        if isNumeric(text) { return .numeric }
+        if isDate(text) { return .date }
+        return .text
+    }
+    
+    // 根据类型确定对齐方式
+    var alignment: Alignment {
+        switch cellType {
+        case .numeric:
+            return .trailing
+        case .date, .text, .null:
+            return .leading
+        }
+    }
+    
+    // 格式化显示文本
+    var displayText: String {
+        if isNull { return "NULL" }
+        if cellType == .date {
+            return formatDate(text)
+        }
+        return text
+    }
+    
     var body: some View {
-        Text(isNull ? "null" : text)
+        Text(displayText)
             .font(DesignSystem.Typography.code)
             .italic(isNull)
-            .foregroundColor(isNull ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
-            .frame(width: 150, alignment: .leading)
+            .foregroundColor(isNull ? DesignSystem.Colors.textMuted : DesignSystem.Colors.textPrimary)
+            .frame(minWidth: 100, maxWidth: 200, alignment: alignment)
             .padding(.horizontal, DesignSystem.Spacing.md)
             .padding(.vertical, 6)
-            .background(isEvenRow ? Color.clear : DesignSystem.Colors.secondaryBackground.opacity(0.3))
+            .background(
+                isHovering ? DesignSystem.Colors.tableRowHover :
+                (isEvenRow ? DesignSystem.Colors.tableRowEven : DesignSystem.Colors.tableRowOdd)
+            )
             .overlay(
                 Rectangle()
-                    .frame(width: 1, height: nil, alignment: .trailing)
-                    .foregroundColor(DesignSystem.Colors.separator),
+                    .frame(width: 1)
+                    .foregroundColor(DesignSystem.Colors.borderLight),
                 alignment: .trailing
             )
+            .onHover { hovering in
+                isHovering = hovering
+            }
+    }
+    
+    // 检测是否为数值
+    private func isNumeric(_ string: String) -> Bool {
+        return Double(string) != nil
+    }
+    
+    // 检测是否为日期格式
+    private func isDate(_ string: String) -> Bool {
+        // 匹配常见日期格式：YYYY-MM-DD, YYYY/MM/DD, YYYY-M-D 等
+        let datePatterns = [
+            "^\\d{4}-\\d{1,2}-\\d{1,2}",  // 2025-1-2 或 2025-01-02
+            "^\\d{4}/\\d{1,2}/\\d{1,2}",  // 2025/1/2 或 2025/01/02
+            "^\\d{4}年\\d{1,2}月\\d{1,2}日" // 2025年1月2日
+        ]
+        
+        for pattern in datePatterns {
+            if string.range(of: pattern, options: .regularExpression) != nil {
+                return true
+            }
+        }
+        return false
+    }
+    
+    // 格式化日期为 YYYY-MM-DD
+    private func formatDate(_ string: String) -> String {
+        // 尝试解析各种日期格式
+        let dateFormatters = [
+            "yyyy-M-d",
+            "yyyy-MM-dd",
+            "yyyy/M/d",
+            "yyyy/MM/dd",
+            "yyyy年M月d日"
+        ]
+        
+        let outputFormatter = DateFormatter()
+        outputFormatter.dateFormat = "yyyy-MM-dd"
+        
+        for format in dateFormatters {
+            let formatter = DateFormatter()
+            formatter.dateFormat = format
+            if let date = formatter.date(from: string) {
+                return outputFormatter.string(from: date)
+            }
+        }
+        
+        // 如果无法解析，返回原始字符串
+        return string
+    }
+}
+
+/// 单元格类型
+enum CellType {
+    case text
+    case numeric
+    case date
+    case null
+}
+
+/// 结果表格视图 - 使用 ScrollView 实现固定表头
+struct ResultTableView: View {
+    let result: QueryResult
+    
+    var body: some View {
+        GeometryReader { geometry in
+            ScrollView([.horizontal, .vertical], showsIndicators: true) {
+                LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+                    Section(header: 
+                        HStack(spacing: 0) {
+                            ForEach(Array(result.columns.enumerated()), id: \.offset) { index, column in
+                                ResultHeaderCell(text: column)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    ) {
+                        ForEach(0..<result.rowCount, id: \.self) { rowIndex in
+                            HStack(spacing: 0) {
+                                ForEach(0..<result.columns.count, id: \.self) { colIndex in
+                                    ResultDataCell(
+                                        text: result.rows[rowIndex][colIndex],
+                                        isEvenRow: rowIndex % 2 == 0
+                                    )
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                }
+                .frame(minWidth: geometry.size.width, minHeight: geometry.size.height, alignment: .topLeading)
+            }
+            .background(Color.white)
+        }
     }
 }
 

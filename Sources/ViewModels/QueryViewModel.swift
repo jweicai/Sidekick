@@ -15,6 +15,7 @@ class QueryViewModel: ObservableObject {
     // MARK: - Published Properties
     
     @Published var sqlQuery: String = ""
+    @Published var selectedSQLText: String = ""
     @Published var queryResult: QueryResult?
     @Published var isExecuting: Bool = false
     @Published var errorMessage: String?
@@ -25,6 +26,8 @@ class QueryViewModel: ObservableObject {
     private var loadedTables: [String: DataFrame] = [:]
     private var cancellables = Set<AnyCancellable>()
     
+    private let sqlQueryPersistenceKey = "TableQuery.LastSQLQuery"
+    
     // MARK: - Initialization
     
     init() {
@@ -34,6 +37,17 @@ class QueryViewModel: ObservableObject {
         } catch {
             errorMessage = "Failed to initialize database: \(error.localizedDescription)"
         }
+        
+        // Load persisted SQL query
+        loadPersistedQuery()
+        
+        // Save SQL query when it changes
+        $sqlQuery
+            .debounce(for: .seconds(0.5), scheduler: DispatchQueue.main)
+            .sink { [weak self] query in
+                self?.saveQuery(query)
+            }
+            .store(in: &cancellables)
     }
     
     // MARK: - Public Methods
@@ -56,7 +70,12 @@ class QueryViewModel: ObservableObject {
     
     /// 执行 SQL 查询
     func executeQuery() {
-        guard !sqlQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        // 优先执行选中的文本，如果没有选中则执行全部
+        let queryToExecute = selectedSQLText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty 
+            ? sqlQuery 
+            : selectedSQLText
+        
+        guard !queryToExecute.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             errorMessage = "请输入 SQL 查询"
             return
         }
@@ -69,7 +88,7 @@ class QueryViewModel: ObservableObject {
             guard let self = self else { return }
             
             do {
-                let result = try self.sqlEngine.executeQuery(sql: self.sqlQuery)
+                let result = try self.sqlEngine.executeQuery(sql: queryToExecute)
                 
                 DispatchQueue.main.async {
                     self.queryResult = result
@@ -96,6 +115,9 @@ class QueryViewModel: ObservableObject {
         queryResult = nil
         errorMessage = nil
         loadedTables.removeAll()
+        
+        // Clear persisted query
+        clearPersistedQuery()
         
         // Recreate database
         sqlEngine.closeDatabase()
@@ -166,5 +188,26 @@ class QueryViewModel: ObservableObject {
         // Use DataConverter to generate INSERT statements
         let converter = DataConverter()
         return converter.generateInsertStatements(dataFrame: dataFrame, tableName: tableName)
+    }
+    
+    // MARK: - Private Methods - Persistence
+    
+    /// 保存 SQL 查询到 UserDefaults
+    private func saveQuery(_ query: String) {
+        UserDefaults.standard.set(query, forKey: sqlQueryPersistenceKey)
+    }
+    
+    /// 从 UserDefaults 加载 SQL 查询
+    private func loadPersistedQuery() {
+        if let savedQuery = UserDefaults.standard.string(forKey: sqlQueryPersistenceKey) {
+            sqlQuery = savedQuery
+            print("📝 Loaded persisted SQL query")
+        }
+    }
+    
+    /// 清除持久化的 SQL 查询
+    private func clearPersistedQuery() {
+        UserDefaults.standard.removeObject(forKey: sqlQueryPersistenceKey)
+        print("🗑️ Cleared persisted SQL query")
     }
 }

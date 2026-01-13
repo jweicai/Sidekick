@@ -11,6 +11,7 @@ import AppKit
 /// SQL 文本编辑器 - 使用 NSTextView 确保键盘输入正常工作
 struct SQLTextEditor: NSViewRepresentable {
     @Binding var text: String
+    @Binding var selectedText: String
     
     func makeNSView(context: Context) -> NSScrollView {
         // 使用 Apple 推荐的方式创建可滚动的文本视图
@@ -86,11 +87,27 @@ struct SQLTextEditor: NSViewRepresentable {
         func textDidChange(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
             parent.text = textView.string
+            updateSelectedText(textView)
+        }
+        
+        func textViewDidChangeSelection(_ notification: Notification) {
+            guard let textView = notification.object as? NSTextView else { return }
+            updateSelectedText(textView)
+        }
+        
+        private func updateSelectedText(_ textView: NSTextView) {
+            let selectedRange = textView.selectedRange()
+            if selectedRange.length > 0 {
+                let selectedText = (textView.string as NSString).substring(with: selectedRange)
+                parent.selectedText = selectedText
+            } else {
+                parent.selectedText = ""
+            }
         }
     }
 }
 
 #Preview {
-    SQLTextEditor(text: .constant("SELECT * FROM users;"))
+    SQLTextEditor(text: .constant("SELECT * FROM users;"), selectedText: .constant(""))
         .frame(height: 200)
 }

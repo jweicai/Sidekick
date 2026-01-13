@@ -11,7 +11,8 @@ import Combine
 /// 已加载的表信息
 struct LoadedTable: Identifiable {
     let id = UUID()
-    let name: String
+    let name: String           // SQL 表名 (table1, table2, ...)
+    let displayName: String    // 原始文件名（用于显示）
     let dataFrame: DataFrame
     let sourceURL: URL
     
@@ -19,6 +20,13 @@ struct LoadedTable: Identifiable {
     var columnCount: Int { dataFrame.columns.count }
     var columnNames: [String] { dataFrame.columns.map { $0.name } }
     var columnTypes: [ColumnType] { dataFrame.columns.map { $0.type } }
+}
+
+/// 持久化的表信息（用于保存到 UserDefaults）
+struct PersistedTableInfo: Codable {
+    let name: String
+    let displayName: String
+    let sourceURLPath: String
 }
 
 /// 主视图的 ViewModel
@@ -61,6 +69,15 @@ class MainViewModel: ObservableObject {
     
     private let loaderManager = FileLoaderManager.shared
     private var cancellables = Set<AnyCancellable>()
+    private var tableCounter = 0  // 用于生成 table1, table2, ...
+    
+    private let persistenceKey = "TableQuery.LoadedTables"
+    
+    // MARK: - Initialization
+    
+    init() {
+        loadPersistedTables()
+    }
     
     // MARK: - Public Methods
     
@@ -75,11 +92,14 @@ class MainViewModel: ObservableObject {
                 let dataFrame = try self?.loaderManager.loadFile(from: url)
                 
                 DispatchQueue.main.async {
-                    if let df = dataFrame {
-                        let tableName = url.deletingPathExtension().lastPathComponent
-                        let table = LoadedTable(name: tableName, dataFrame: df, sourceURL: url)
-                        self?.loadedTables.append(table)
-                        self?.selectedTableId = table.id
+                    if let df = dataFrame, let self = self {
+                        self.tableCounter += 1
+                        let tableName = "table\(self.tableCounter)"
+                        let displayName = url.deletingPathExtension().lastPathComponent
+                        let table = LoadedTable(name: tableName, displayName: displayName, dataFrame: df, sourceURL: url)
+                        self.loadedTables.append(table)
+                        self.selectedTableId = table.id
+                        self.saveTables()  // 保存到持久化存储
                     }
                     self?.isLoading = false
                 }
@@ -100,6 +120,8 @@ class MainViewModel: ObservableObject {
         if selectedTableId == id {
             selectedTableId = loadedTables.first?.id
         }
+        
+        saveTables()  // 更新持久化存储
     }
     
     /// 移除表（按名称）
@@ -131,5 +153,82 @@ class MainViewModel: ObservableObject {
         fileURL = nil
         fileName = ""
         errorMessage = nil
+        tableCounter = 0  // 重置计数器
+        clearPersistedTables()
+    }
+    
+    // MARK: - Private Methods - Persistence
+    
+    /// 保存已加载的表信息到 UserDefaults
+    private func saveTables() {
+        let persistedTables = loadedTables.map { table in
+            PersistedTableInfo(
+                name: table.name,
+                displayName: table.displayName,
+                sourceURLPath: table.sourceURL.path
+            )
+        }
+        
+        if let encoded = try? JSONEncoder().encode(persistedTables) {
+            UserDefaults.standard.set(encoded, forKey: persistenceKey)
+            print("💾 Saved \(persistedTables.count) tables to persistence")
+        }
+    }
+    
+    /// 从 UserDefaults 加载已保存的表
+    private func loadPersistedTables() {
+        guard let data = UserDefaults.standard.data(forKey: persistenceKey),
+              let persistedTables = try? JSONDecoder().decode([PersistedTableInfo].self, from: data) else {
+            print("📂 No persisted tables found")
+            return
+        }
+        
+        print("📂 Loading \(persistedTables.count) persisted tables...")
+        
+        for persistedTable in persistedTables {
+            let url = URL(fileURLWithPath: persistedTable.sourceURLPath)
+            
+            // 检查文件是否还存在
+            guard FileManager.default.fileExists(atPath: url.path) else {
+                print("⚠️ File not found: \(url.path)")
+                continue
+            }
+            
+            // 重新加载文件
+            do {
+                let dataFrame = try loaderManager.loadFile(from: url)
+                
+                // 使用保存的表名，而不是重新生成
+                let table = LoadedTable(
+                    name: persistedTable.name,
+                    displayName: persistedTable.displayName,
+                    dataFrame: dataFrame,
+                    sourceURL: url
+                )
+                loadedTables.append(table)
+                
+                // 更新 tableCounter 以确保新表不会重复
+                // 从表名中提取数字（如 "table3" -> 3）
+                let numberString = persistedTable.name.replacingOccurrences(of: "table", with: "")
+                if let number = Int(numberString) {
+                    tableCounter = max(tableCounter, number)
+                }
+                
+                print("✅ Loaded persisted table: \(persistedTable.name)")
+            } catch {
+                print("❌ Failed to load persisted table \(persistedTable.name): \(error.localizedDescription)")
+            }
+        }
+        
+        // 选择第一个表
+        if let firstTable = loadedTables.first {
+            selectedTableId = firstTable.id
+        }
+    }
+    
+    /// 清除持久化的表信息
+    private func clearPersistedTables() {
+        UserDefaults.standard.removeObject(forKey: persistenceKey)
+        print("🗑️ Cleared persisted tables")
     }
 }

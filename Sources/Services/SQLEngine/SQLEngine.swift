@@ -63,13 +63,16 @@ class SQLEngine {
             try createDatabase()
         }
         
+        // 先删除已存在的同名表，确保数据是最新的
+        try dropTable(name: name)
+        
         // Generate CREATE TABLE statement
         let columnDefinitions = dataFrame.columns.map { column in
             "\(sanitizeIdentifier(column.name)) \(column.type.sqlType)"
         }
         
         let createTableSQL = """
-        CREATE TABLE IF NOT EXISTS \(sanitizeIdentifier(name)) (
+        CREATE TABLE \(sanitizeIdentifier(name)) (
             \(columnDefinitions.joined(separator: ", "))
         )
         """
@@ -125,8 +128,16 @@ class SQLEngine {
         
         // Extract column names
         let columnCount = sqlite3_column_count(statement)
-        let columns = (0..<columnCount).map { index in
-            String(cString: sqlite3_column_name(statement, index))
+        let columns = (0..<columnCount).map { index -> String in
+            if let cString = sqlite3_column_name(statement, index) {
+                let columnName = String(cString: cString)
+                // 如果列名为空或者是自动生成的（如 "0", "1"），生成更友好的名称
+                if columnName.isEmpty || columnName.allSatisfy({ $0.isNumber }) {
+                    return "Column\(index + 1)"
+                }
+                return columnName
+            }
+            return "Column\(index + 1)"
         }
         
         // Fetch rows

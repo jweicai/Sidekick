@@ -37,16 +37,64 @@ class CSVLoader: FileLoaderProtocol {
             throw CSVError.emptyFile
         }
         
-        // 解析表头
-        let columnNames = parseRow(lines[0])
+        // 解析第一行
+        let firstRow = parseRow(lines[0])
+        
+        // 检测第一行是否为列名（如果第一行全是数据，则没有表头）
+        let hasHeader = detectHeader(firstRow: firstRow, secondRow: lines.count > 1 ? parseRow(lines[1]) : nil)
+        
+        let columnNames: [String]
+        let dataStartIndex: Int
+        
+        if hasHeader {
+            // 第一行是列名
+            columnNames = firstRow.map { name in
+                let trimmed = name.trimmingCharacters(in: .whitespaces)
+                return trimmed.isEmpty ? "Column\(firstRow.firstIndex(of: name)! + 1)" : trimmed
+            }
+            dataStartIndex = 1
+        } else {
+            // 第一行就是数据，生成列名
+            columnNames = (1...firstRow.count).map { "Column\($0)" }
+            dataStartIndex = 0
+        }
         
         // 解析数据行
-        let rows = lines.dropFirst().map { parseRow($0) }
+        let rows = lines.dropFirst(dataStartIndex).map { parseRow($0) }
         
         // 推断列类型
         let columns = inferColumnTypes(columnNames: columnNames, rows: rows)
         
         return DataFrame(columns: columns, rows: rows)
+    }
+    
+    /// 检测第一行是否为表头
+    /// 如果第一行全是数值，而第二行有文本，则第一行可能是数据
+    /// 如果第一行有文本，则很可能是表头
+    private func detectHeader(firstRow: [String], secondRow: [String]?) -> Bool {
+        // 如果第一行有任何非数值的字段，认为是表头
+        let hasNonNumeric = firstRow.contains { field in
+            let trimmed = field.trimmingCharacters(in: .whitespaces)
+            return !trimmed.isEmpty && Double(trimmed) == nil
+        }
+        
+        if hasNonNumeric {
+            return true
+        }
+        
+        // 如果第一行全是数值，检查第二行
+        // 如果没有第二行，假设第一行是表头
+        guard let secondRow = secondRow else {
+            return true
+        }
+        
+        // 如果第二行也全是数值，假设第一行是数据
+        let secondRowAllNumeric = secondRow.allSatisfy { field in
+            let trimmed = field.trimmingCharacters(in: .whitespaces)
+            return trimmed.isEmpty || Double(trimmed) != nil
+        }
+        
+        return !secondRowAllNumeric
     }
     
     /// 解析单行数据
@@ -98,45 +146,15 @@ class CSVLoader: FileLoaderProtocol {
     /// 推断列类型
     private func inferColumnTypes(columnNames: [String], rows: [[String]]) -> [Column] {
         var columns: [Column] = []
+        let typeInferrer = TypeInferrer()
         
         for (index, name) in columnNames.enumerated() {
             let columnValues = rows.compactMap { $0.indices.contains(index) ? $0[index] : nil }
-            let type = inferType(from: columnValues)
+            let type = typeInferrer.inferType(from: columnValues)
             columns.append(Column(name: name, type: type))
         }
         
         return columns
-    }
-    
-    /// 推断单列的数据类型
-    private func inferType(from values: [String]) -> ColumnType {
-        guard !values.isEmpty else { return .text }
-        
-        let nonEmptyValues = values.filter { !$0.isEmpty }
-        guard !nonEmptyValues.isEmpty else { return .text }
-        
-        // 检查是否全是整数
-        let allIntegers = nonEmptyValues.allSatisfy { Int($0) != nil }
-        if allIntegers {
-            return .integer
-        }
-        
-        // 检查是否全是浮点数
-        let allReals = nonEmptyValues.allSatisfy { Double($0) != nil }
-        if allReals {
-            return .real
-        }
-        
-        // 检查是否全是布尔值
-        let allBooleans = nonEmptyValues.allSatisfy { 
-            $0.lowercased() == "true" || $0.lowercased() == "false" 
-        }
-        if allBooleans {
-            return .boolean
-        }
-        
-        // 默认为文本
-        return .text
     }
 }
 

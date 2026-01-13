@@ -14,9 +14,13 @@ let package = Package(
             targets: ["TableQuery"]
         )
     ],
+    dependencies: [
+        .package(url: "https://github.com/CoreOffice/CoreXLSX.git", from: "0.14.0")
+    ],
     targets: [
         .executableTarget(
             name: "TableQuery",
+            dependencies: ["CoreXLSX"],
             path: "Sources",
             swiftSettings: [
                 .unsafeFlags(["-parse-as-library"])

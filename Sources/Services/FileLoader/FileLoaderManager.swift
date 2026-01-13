@@ -77,8 +77,7 @@ class FileLoaderManager {
     private func registerBuiltInLoaders() {
         register(loader: CSVLoader())
         register(loader: JSONLoader())
-        // 未来可以添加更多内置加载器
-        // register(loader: ExcelLoader())
+        register(loader: XLSXLoader())
     }
 }
 
@@ -95,7 +94,7 @@ enum FileLoaderError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .unsupportedFileType(let ext):
-            return "不支持的文件类型: .\(ext)。支持的格式: csv, json"
+            return "不支持的文件类型: .\(ext)。支持的格式: csv, json, xlsx"
         case .loaderNotFound:
             return "未找到合适的文件加载器"
         case .fileNotFound(let fileName):
@@ -114,7 +113,7 @@ enum FileLoaderError: Error, LocalizedError {
     var recoverySuggestion: String? {
         switch self {
         case .unsupportedFileType:
-            return "请使用以下格式之一: csv, json"
+            return "请使用以下格式之一: csv, json, xlsx"
         case .loaderNotFound:
             return "请检查文件格式是否正确"
         case .fileNotFound:
