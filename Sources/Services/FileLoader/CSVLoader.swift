@@ -6,9 +6,19 @@
 //
 
 import Foundation
+import UniformTypeIdentifiers
 
 /// CSV 文件加载器
-class CSVLoader {
+class CSVLoader: FileLoaderProtocol {
+    
+    // MARK: - FileLoaderProtocol
+    
+    var name: String { "CSV Loader" }
+    var version: String { "1.0.0" }
+    var supportedTypes: [UTType] { [.commaSeparatedText, .plainText] }
+    var supportedExtensions: [String] { ["csv", "txt"] }
+    
+    // MARK: - Public Methods
     
     /// 从 URL 加载 CSV 文件
     func load(from url: URL) throws -> DataFrame {

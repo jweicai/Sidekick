@@ -27,7 +27,7 @@ class MainViewModel: ObservableObject {
     
     // MARK: - Private Properties
     
-    private let csvLoader = CSVLoader()
+    private let loaderManager = FileLoaderManager.shared
     private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Public Methods
@@ -40,7 +40,7 @@ class MainViewModel: ObservableObject {
         
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             do {
-                let dataFrame = try self?.csvLoader.load(from: url)
+                let dataFrame = try self?.loaderManager.loadFile(from: url)
                 
                 DispatchQueue.main.async {
                     self?.dataFrame = dataFrame
