@@ -1,8 +1,8 @@
-# QueryKit
+# TableQuery
 
-**Drag. Query. Done.**
+**Query Any Table, Instantly**
 
-A lightweight data query and processing tool for Mac.
+A lightweight Mac app for querying data files with SQL. Drag CSV, Excel, or JSON files and query them instantly.
 
 ## 🎯 Features
 
@@ -15,7 +15,7 @@ A lightweight data query and processing tool for Mac.
 
 ## 🚀 Quick Start
 
-1. Drag a CSV/Excel/JSON file into QueryKit
+1. Drag a CSV/Excel/JSON file into TableQuery
 2. Write SQL query
 3. Execute and view results
 4. Export to any format
@@ -45,9 +45,9 @@ Download from Mac App Store (Coming Soon)
 
 ## 📄 License
 
-Copyright © 2025 QueryKit. All rights reserved.
+Copyright © 2025 TableQuery. All rights reserved.
 
 ## 📧 Contact
 
-- GitHub: https://github.com/jweicai/QueryKit
-- Issues: https://github.com/jweicai/QueryKit/issues
+- GitHub: https://github.com/jweicai/TableQuery
+- Issues: https://github.com/jweicai/TableQuery/issues
