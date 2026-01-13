@@ -177,6 +177,18 @@ ORDER BY 总金额 DESC;
 - **MVVM 架构**: 清晰的代码组织结构
 - **属性测试**: 78 个测试确保代码质量
 
+### 技术难点
+
+项目开发过程中遇到的主要技术难点是 **SwiftUI macOS 应用的键盘输入问题**。
+
+**问题**: Swift Package Manager 构建的 SwiftUI 应用默认使用 `.accessory` 激活策略，导致应用无法正确接收键盘输入。
+
+**解决方案**: 使用 `@NSApplicationDelegateAdaptor` 添加 AppDelegate，并设置 `NSApp.setActivationPolicy(.regular)`。
+
+详细的排查过程和解决方案请参考：
+- [SwiftUI键盘输入问题解决方案](docs/SwiftUI键盘输入问题解决方案.md)
+- [SwiftUI键盘输入问题排查记录](docs/SwiftUI键盘输入问题排查记录.md)
+
 ## 系统要求
 
 - macOS 14.0 或更高版本
