@@ -64,8 +64,6 @@ struct MainView: View {
             }
         }
         .frame(minWidth: 900, minHeight: 600)
-        // Keyboard shortcuts
-        .keyboardShortcut("n", modifiers: .command) // ⌘+N to add file
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenFile"))) { _ in
             openFilePicker()
         }

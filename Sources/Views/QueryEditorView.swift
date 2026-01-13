@@ -56,27 +56,16 @@ struct QueryEditorView: View {
                 .padding(.horizontal, DesignSystem.Spacing.lg)
                 .padding(.top, DesignSystem.Spacing.md)
                 
-                // SQL 编辑器（带行号）
-                HStack(alignment: .top, spacing: 0) {
-                    // 行号
-                    LineNumberView(lineCount: viewModel.sqlQuery.components(separatedBy: "\n").count)
-                        .frame(width: 40)
-                    
-                    Divider()
-                    
-                    // 文本编辑器
-                    TextEditor(text: $viewModel.sqlQuery)
-                        .font(DesignSystem.Typography.code)
-                        .scrollContentBackground(.hidden)
-                        .background(DesignSystem.Colors.background)
+                // SQL 编辑器（使用 NSTextView）
+                VStack(alignment: .leading, spacing: 0) {
+                    SQLTextEditor(text: $viewModel.sqlQuery)
+                        .frame(height: 150)
+                        .cornerRadius(DesignSystem.CornerRadius.medium)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium)
+                                .stroke(DesignSystem.Colors.separator, lineWidth: 1)
+                        )
                 }
-                .frame(height: 150)
-                .background(DesignSystem.Colors.background)
-                .cornerRadius(DesignSystem.CornerRadius.medium)
-                .overlay(
-                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium)
-                        .stroke(DesignSystem.Colors.separator, lineWidth: 1)
-                )
                 .padding(.horizontal, DesignSystem.Spacing.lg)
                 
                 // Placeholder提示
@@ -84,8 +73,8 @@ struct QueryEditorView: View {
                     Text("输入 SQL 查询，例如: SELECT * FROM table_name")
                         .font(DesignSystem.Typography.body)
                         .foregroundColor(DesignSystem.Colors.textSecondary)
-                        .padding(.horizontal, 64)  // 40 (line numbers) + 24 (padding)
-                        .padding(.top, -125)
+                        .padding(.horizontal, DesignSystem.Spacing.lg + 8)
+                        .padding(.top, -135)
                         .allowsHitTesting(false)
                 }
             }
