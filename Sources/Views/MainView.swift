@@ -10,38 +10,97 @@ import SwiftUI
 /// 主视图
 struct MainView: View {
     @StateObject private var viewModel = MainViewModel()
+    @StateObject private var queryViewModel = QueryViewModel()
     
     var body: some View {
         VStack(spacing: 0) {
             // 顶部工具栏
             TopToolbar(
                 fileName: viewModel.fileName,
-                onClear: viewModel.clearData
+                tableCount: viewModel.loadedTables.count,
+                onClear: {
+                    viewModel.clearData()
+                    queryViewModel.clearAll()
+                },
+                onAddFile: {
+                    openFilePicker()
+                }
             )
             
             Divider()
             
             // 主内容区
-            ZStack {
-                if viewModel.isLoading {
-                    LoadingView()
-                } else if let errorMessage = viewModel.errorMessage {
-                    ErrorView(message: errorMessage, onRetry: nil)
-                } else if let dataFrame = viewModel.dataFrame {
-                    DataTableView(dataFrame: dataFrame)
-                } else {
-                    FileDropZone(droppedFileURL: $viewModel.fileURL)
+            if viewModel.hasLoadedTables {
+                HSplitView {
+                    // 左侧：已加载表列表
+                    LoadedTablesView(
+                        viewModel: viewModel,
+                        onTableRemoved: { tableName in
+                            queryViewModel.removeTable(name: tableName)
+                        }
+                    )
+                    .frame(minWidth: 200, idealWidth: 250, maxWidth: 350)
+                    
+                    // 右侧：查询编辑器
+                    QueryEditorView(viewModel: queryViewModel)
+                }
+                .onAppear {
+                    loadAllTablesToQueryEngine()
+                }
+                .onChange(of: viewModel.loadedTables.count) { _ in
+                    loadAllTablesToQueryEngine()
+                }
+            } else {
+                // 文件拖放区
+                ZStack {
+                    if viewModel.isLoading {
+                        LoadingView()
+                    } else if let errorMessage = viewModel.errorMessage {
+                        ErrorView(message: errorMessage, onRetry: nil)
+                    } else {
+                        FileDropZone(droppedFileURL: $viewModel.fileURL)
+                    }
                 }
             }
         }
-        .frame(minWidth: 800, minHeight: 600)
+        .frame(minWidth: 900, minHeight: 600)
+        // Keyboard shortcuts
+        .keyboardShortcut("n", modifiers: .command) // ⌘+N to add file
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("OpenFile"))) { _ in
+            openFilePicker()
+        }
+    }
+    
+    private func loadAllTablesToQueryEngine() {
+        for table in viewModel.loadedTables {
+            queryViewModel.loadTable(name: table.name, dataFrame: table.dataFrame)
+        }
+    }
+    
+    private func openFilePicker() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.allowedContentTypes = [
+            .init(filenameExtension: "csv")!,
+            .init(filenameExtension: "json")!
+        ]
+        
+        if panel.runModal() == .OK {
+            for url in panel.urls {
+                viewModel.loadFile(url: url)
+            }
+        }
     }
 }
 
 /// 顶部工具栏
 struct TopToolbar: View {
     let fileName: String
+    let tableCount: Int
     let onClear: () -> Void
+    let onAddFile: () -> Void
     
     var body: some View {
         HStack {
@@ -58,27 +117,47 @@ struct TopToolbar: View {
             
             Spacer()
             
-            // 文件名
-            if !fileName.isEmpty {
-                HStack(spacing: 8) {
-                    Image(systemName: "doc.text")
-                        .foregroundColor(.secondary)
-                    
-                    Text(fileName)
-                        .font(.body)
-                        .foregroundColor(.primary)
-                    
-                    Button(action: onClear) {
-                        Image(systemName: "xmark.circle.fill")
+            // 操作按钮
+            HStack(spacing: 12) {
+                if tableCount > 0 {
+                    // 表计数
+                    HStack(spacing: 6) {
+                        Image(systemName: "tablecells")
                             .foregroundColor(.secondary)
+                        
+                        Text("\(tableCount) 个表")
+                            .font(.body)
+                            .foregroundColor(.primary)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(6)
+                    
+                    // 添加文件按钮
+                    Button(action: onAddFile) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "plus")
+                            Text("添加文件")
+                        }
+                        .font(.body)
+                        .foregroundColor(.blue)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(6)
                     }
                     .buttonStyle(.plain)
-                    .help("清除数据")
+                    .help("添加更多数据文件")
+                    
+                    // 清除按钮
+                    Button(action: onClear) {
+                        Image(systemName: "trash")
+                            .foregroundColor(.red)
+                    }
+                    .buttonStyle(.plain)
+                    .help("清除所有数据")
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color.gray.opacity(0.1))
-                .cornerRadius(6)
             }
         }
         .padding()

@@ -86,13 +86,47 @@ class FileLoaderManager {
 enum FileLoaderError: Error, LocalizedError {
     case unsupportedFileType(String)
     case loaderNotFound
+    case fileNotFound(fileName: String)
+    case encodingError(fileName: String)
+    case parseError(fileName: String, details: String)
+    case emptyFile(fileName: String)
+    case readError(fileName: String, underlyingError: Error)
     
     var errorDescription: String? {
         switch self {
         case .unsupportedFileType(let ext):
-            return "不支持的文件类型: .\(ext)"
+            return "不支持的文件类型: .\(ext)。支持的格式: csv, json"
         case .loaderNotFound:
             return "未找到合适的文件加载器"
+        case .fileNotFound(let fileName):
+            return "找不到文件: \(fileName)"
+        case .encodingError(let fileName):
+            return "文件编码错误: \(fileName)。请确保文件使用 UTF-8 编码"
+        case .parseError(let fileName, let details):
+            return "解析文件失败: \(fileName)。\(details)"
+        case .emptyFile(let fileName):
+            return "文件为空: \(fileName)"
+        case .readError(let fileName, let underlyingError):
+            return "读取文件失败: \(fileName)。\(underlyingError.localizedDescription)"
+        }
+    }
+    
+    var recoverySuggestion: String? {
+        switch self {
+        case .unsupportedFileType:
+            return "请使用以下格式之一: csv, json"
+        case .loaderNotFound:
+            return "请检查文件格式是否正确"
+        case .fileNotFound:
+            return "请检查文件路径是否正确"
+        case .encodingError:
+            return "请将文件转换为 UTF-8 编码后重试"
+        case .parseError:
+            return "请检查文件格式是否正确"
+        case .emptyFile:
+            return "请确保文件包含数据"
+        case .readError:
+            return "请检查文件权限或重试"
         }
     }
 }

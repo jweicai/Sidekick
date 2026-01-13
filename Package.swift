@@ -18,6 +18,11 @@ let package = Package(
         .executableTarget(
             name: "TableQuery",
             path: "Sources"
+        ),
+        .testTarget(
+            name: "TableQueryTests",
+            dependencies: ["TableQuery"],
+            path: "Tests"
         )
     ]
 )

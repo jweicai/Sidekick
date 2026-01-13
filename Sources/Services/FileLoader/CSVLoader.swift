@@ -22,7 +22,9 @@ class CSVLoader: FileLoaderProtocol {
     
     /// 从 URL 加载 CSV 文件
     func load(from url: URL) throws -> DataFrame {
-        let content = try String(contentsOf: url, encoding: .utf8)
+        guard let content = try? String(contentsOf: url, encoding: .utf8) else {
+            throw CSVError.encodingError
+        }
         return try parse(content: content)
     }
     
@@ -52,20 +54,43 @@ class CSVLoader: FileLoaderProtocol {
         var result: [String] = []
         var currentField = ""
         var insideQuotes = false
+        var previousChar: Character?
         
         for char in line {
             if char == "\"" {
+                // Handle escaped quotes (double quotes)
+                if insideQuotes && previousChar == "\"" {
+                    currentField.append(char)
+                    previousChar = nil // Reset to avoid double processing
+                    continue
+                }
                 insideQuotes.toggle()
             } else if char == "," && !insideQuotes {
-                result.append(currentField.trimmingCharacters(in: .whitespaces))
+                // Remove surrounding quotes if present
+                let trimmed = currentField.trimmingCharacters(in: .whitespaces)
+                if trimmed.hasPrefix("\"") && trimmed.hasSuffix("\"") && trimmed.count >= 2 {
+                    let startIndex = trimmed.index(after: trimmed.startIndex)
+                    let endIndex = trimmed.index(before: trimmed.endIndex)
+                    result.append(String(trimmed[startIndex..<endIndex]))
+                } else {
+                    result.append(trimmed)
+                }
                 currentField = ""
             } else {
                 currentField.append(char)
             }
+            previousChar = char
         }
         
         // 添加最后一个字段
-        result.append(currentField.trimmingCharacters(in: .whitespaces))
+        let trimmed = currentField.trimmingCharacters(in: .whitespaces)
+        if trimmed.hasPrefix("\"") && trimmed.hasSuffix("\"") && trimmed.count >= 2 {
+            let startIndex = trimmed.index(after: trimmed.startIndex)
+            let endIndex = trimmed.index(before: trimmed.endIndex)
+            result.append(String(trimmed[startIndex..<endIndex]))
+        } else {
+            result.append(trimmed)
+        }
         
         return result
     }

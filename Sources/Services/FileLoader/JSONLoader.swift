@@ -23,7 +23,9 @@ class JSONLoader: FileLoaderProtocol {
     
     /// 从 URL 加载 JSON 文件
     func load(from url: URL) throws -> DataFrame {
-        let data = try Data(contentsOf: url)
+        guard let data = try? Data(contentsOf: url) else {
+            throw JSONLoaderError.invalidFormat
+        }
         
         // 尝试解析为 JSON 数组
         if let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
@@ -31,7 +33,9 @@ class JSONLoader: FileLoaderProtocol {
         }
         
         // 尝试解析为 JSONL (每行一个 JSON 对象)
-        let content = try String(contentsOf: url, encoding: .utf8)
+        guard let content = String(data: data, encoding: .utf8) else {
+            throw JSONLoaderError.invalidFormat
+        }
         return try parseJSONLines(content)
     }
     
@@ -43,13 +47,23 @@ class JSONLoader: FileLoaderProtocol {
             throw JSONLoaderError.emptyFile
         }
         
-        // 提取列名
-        let columnNames = Array(jsonArray[0].keys).sorted()
+        // 收集所有对象的键（处理不同对象可能有不同键的情况）
+        var allKeys = Set<String>()
+        for dict in jsonArray {
+            allKeys.formUnion(dict.keys)
+        }
+        
+        // 按字母顺序排序列名
+        let columnNames = Array(allKeys).sorted()
         
         // 提取数据行
         let rows = jsonArray.map { dict in
             columnNames.map { key in
                 if let value = dict[key] {
+                    // Handle different value types
+                    if value is NSNull {
+                        return ""
+                    }
                     return String(describing: value)
                 } else {
                     return ""
@@ -70,13 +84,20 @@ class JSONLoader: FileLoaderProtocol {
         }
         
         var jsonArray: [[String: Any]] = []
+        var parseErrors = 0
         
         for line in lines {
             guard let data = line.data(using: .utf8),
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                parseErrors += 1
                 continue
             }
             jsonArray.append(json)
+        }
+        
+        // If all lines failed to parse, throw error
+        guard !jsonArray.isEmpty else {
+            throw JSONLoaderError.invalidFormat
         }
         
         return try parseJSONArray(jsonArray)
