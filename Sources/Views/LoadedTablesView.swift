@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-/// 已加载表列表视图
+/// 已加载表列表视图 (macOS Source List 风格)
 struct LoadedTablesView: View {
     @ObservedObject var viewModel: MainViewModel
     let onTableRemoved: (String) -> Void
@@ -17,22 +17,25 @@ struct LoadedTablesView: View {
             // Header
             HStack {
                 Text("已加载的表")
-                    .font(.headline)
-                    .foregroundColor(.primary)
+                    .font(DesignSystem.Typography.title3)
+                    .fontWeight(.semibold)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
                 
                 Spacer()
                 
-                Text("\(viewModel.loadedTables.count)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .background(Color.gray.opacity(0.2))
-                    .cornerRadius(4)
+                if !viewModel.loadedTables.isEmpty {
+                    Text("\(viewModel.loadedTables.count)")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(DesignSystem.Colors.secondaryBackground)
+                        .cornerRadius(DesignSystem.CornerRadius.small)
+                }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(Color(NSColor.controlBackgroundColor))
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .padding(.vertical, DesignSystem.Spacing.sm)
+            .background(DesignSystem.Colors.secondaryBackground)
             
             Divider()
             
@@ -41,7 +44,7 @@ struct LoadedTablesView: View {
                 EmptyTablesView()
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 0) {
+                    LazyVStack(spacing: 1) {
                         ForEach(viewModel.loadedTables) { table in
                             TableRowView(
                                 table: table,
@@ -54,35 +57,38 @@ struct LoadedTablesView: View {
                             )
                         }
                     }
+                    .padding(.vertical, DesignSystem.Spacing.xs)
                 }
             }
         }
-        .background(Color(NSColor.windowBackgroundColor))
+        .background(DesignSystem.Colors.background)
     }
 }
 
 /// 空表列表视图
 struct EmptyTablesView: View {
     var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "tablecells")
-                .font(.system(size: 30))
-                .foregroundColor(.gray)
+        VStack(spacing: DesignSystem.Spacing.md) {
+            Image(systemName: "tablecells.badge.ellipsis")
+                .font(.system(size: 40))
+                .foregroundColor(DesignSystem.Colors.textSecondary)
             
             Text("暂无数据表")
-                .font(.body)
-                .foregroundColor(.secondary)
+                .font(DesignSystem.Typography.body)
+                .fontWeight(.medium)
+                .foregroundColor(DesignSystem.Colors.textPrimary)
             
-            Text("拖放 CSV 或 JSON 文件到此处")
-                .font(.caption)
-                .foregroundColor(.secondary)
+            Text("拖放 CSV 或 JSON 文件到窗口")
+                .font(DesignSystem.Typography.caption)
+                .foregroundColor(DesignSystem.Colors.textSecondary)
+                .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding()
+        .padding(DesignSystem.Spacing.lg)
     }
 }
 
-/// 表行视图
+/// 表行视图 (Source List Item 风格)
 struct TableRowView: View {
     let table: LoadedTable
     let isSelected: Bool
@@ -94,67 +100,71 @@ struct TableRowView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 10) {
-                // Table icon
-                Image(systemName: "tablecells")
-                    .font(.system(size: 14))
-                    .foregroundColor(isSelected ? .blue : .secondary)
+            // 主行
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                // 展开/折叠箭头
+                Image(systemName: showDetails ? "chevron.down" : "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                    .frame(width: 12)
+                    .onTapGesture { showDetails.toggle() }
                 
-                // Table info
+                // 表图标
+                Image(systemName: "tablecells")
+                    .font(.system(size: 13))
+                    .foregroundColor(isSelected ? DesignSystem.Colors.accent : DesignSystem.Colors.textSecondary)
+                
+                // 表信息
                 VStack(alignment: .leading, spacing: 2) {
                     Text(table.name)
-                        .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
-                        .foregroundColor(.primary)
+                        .font(DesignSystem.Typography.body)
+                        .fontWeight(isSelected ? .medium : .regular)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
                         .lineLimit(1)
                     
                     Text("\(table.rowCount) 行 × \(table.columnCount) 列")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
                 }
                 
                 Spacer()
                 
-                // Actions
+                // 悬停时显示删除按钮
                 if isHovering || isSelected {
-                    HStack(spacing: 4) {
-                        Button(action: { showDetails.toggle() }) {
-                            Image(systemName: showDetails ? "chevron.up" : "chevron.down")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                        .help("显示列信息")
-                        
-                        Button(action: onRemove) {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                        .help("移除表")
+                    Button(action: onRemove) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
                     }
+                    .buttonStyle(.borderless)
+                    .help("移除表")
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(isSelected ? Color.blue.opacity(0.1) : (isHovering ? Color.gray.opacity(0.05) : Color.clear))
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .padding(.vertical, DesignSystem.Spacing.xs)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small)
+                    .fill(isSelected ? DesignSystem.Colors.accent.opacity(0.15) : 
+                          (isHovering ? DesignSystem.Colors.secondaryBackground : Color.clear))
+            )
             .contentShape(Rectangle())
             .onTapGesture(perform: onSelect)
             .onHover { hovering in
-                isHovering = hovering
+                withAnimation(.easeInOut(duration: DesignSystem.Animation.fast)) {
+                    isHovering = hovering
+                }
             }
             
-            // Column details
+            // 列详情
             if showDetails {
                 ColumnDetailsView(columns: table.dataFrame.columns)
-                    .padding(.leading, 36)
-                    .padding(.trailing, 12)
-                    .padding(.bottom, 8)
+                    .padding(.leading, 32)
+                    .padding(.trailing, DesignSystem.Spacing.md)
+                    .padding(.vertical, DesignSystem.Spacing.xs)
+                    .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .top)))
             }
-            
-            Divider()
-                .padding(.leading, 36)
         }
+        .padding(.horizontal, DesignSystem.Spacing.xs)
     }
 }
 

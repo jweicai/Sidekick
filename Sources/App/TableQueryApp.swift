@@ -13,9 +13,14 @@ struct TableQueryApp: App {
         WindowGroup {
             MainView()
         }
-        .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 1200, height: 800)
         .commands {
-            CommandGroup(replacing: .newItem) {}
+            CommandGroup(replacing: .newItem) {
+                Button("添加文件...") {
+                    NotificationCenter.default.post(name: NSNotification.Name("OpenFile"), object: nil)
+                }
+                .keyboardShortcut("n", modifiers: .command)
+            }
         }
     }
 }

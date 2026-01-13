@@ -8,60 +8,60 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// 文件拖拽区域
+/// 文件拖拽区域 (macOS 标准样式)
 struct FileDropZone: View {
     @Binding var droppedFileURL: URL?
     @State private var isTargeted = false
     
     var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "doc.badge.plus")
-                .font(.system(size: 60))
-                .foregroundColor(isTargeted ? .blue : .gray)
-                .animation(.easeInOut(duration: 0.2), value: isTargeted)
+        VStack(spacing: DesignSystem.Spacing.xl) {
+            // 图标
+            Image(systemName: isTargeted ? "doc.badge.plus.fill" : "doc.badge.plus")
+                .font(.system(size: 64, weight: .light))
+                .foregroundColor(isTargeted ? DesignSystem.Colors.accent : DesignSystem.Colors.textSecondary)
+
             
-            VStack(spacing: 8) {
+            // 文字提示
+            VStack(spacing: DesignSystem.Spacing.sm) {
                 Text("拖拽文件到这里")
-                    .font(.title2)
+                    .font(DesignSystem.Typography.title2)
                     .fontWeight(.medium)
-                    .foregroundColor(.primary)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
                 
-                Text("或点击选择文件")
-                    .font(.body)
-                    .foregroundColor(.secondary)
+                Text("或点击下方按钮选择文件")
+                    .font(DesignSystem.Typography.body)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
             }
             
-            Text("支持 CSV, Excel, JSON, TSV")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .padding(.top, 8)
+            // 支持格式
+            HStack(spacing: DesignSystem.Spacing.md) {
+                FormatBadge(icon: "tablecells", label: "CSV")
+                FormatBadge(icon: "curlybraces", label: "JSON")
+            }
             
+            // 选择文件按钮
             Button(action: selectFile) {
                 Text("选择文件")
-                    .font(.body)
+                    .font(DesignSystem.Typography.body)
                     .fontWeight(.medium)
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 10)
-                    .background(Color.blue)
-                    .cornerRadius(8)
             }
-            .buttonStyle(.plain)
-            .padding(.top, 8)
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large)
                 .strokeBorder(
-                    isTargeted ? Color.blue : Color.gray.opacity(0.3),
-                    style: StrokeStyle(lineWidth: 2, dash: [10])
+                    isTargeted ? DesignSystem.Colors.accent : DesignSystem.Colors.separator,
+                    style: StrokeStyle(lineWidth: 2, dash: [12, 8])
                 )
                 .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(isTargeted ? Color.blue.opacity(0.05) : Color.clear)
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.large)
+                        .fill(isTargeted ? DesignSystem.Colors.accent.opacity(0.05) : Color.clear)
                 )
         )
-        .padding()
+        .padding(DesignSystem.Spacing.xxl)
+        .animation(.easeInOut(duration: DesignSystem.Animation.fast), value: isTargeted)
         .onDrop(of: [.fileURL], isTargeted: $isTargeted) { providers in
             handleDrop(providers: providers)
         }
@@ -96,10 +96,32 @@ struct FileDropZone: View {
             .json,
             .plainText
         ]
+        panel.message = "选择 CSV 或 JSON 数据文件"
         
         if panel.runModal() == .OK {
             droppedFileURL = panel.url
         }
+    }
+}
+
+/// 格式徽章
+struct FormatBadge: View {
+    let icon: String
+    let label: String
+    
+    var body: some View {
+        HStack(spacing: DesignSystem.Spacing.xs) {
+            Image(systemName: icon)
+                .font(.system(size: 12))
+            Text(label)
+                .font(DesignSystem.Typography.caption)
+                .fontWeight(.medium)
+        }
+        .padding(.horizontal, DesignSystem.Spacing.sm)
+        .padding(.vertical, 4)
+        .background(DesignSystem.Colors.secondaryBackground)
+        .foregroundColor(DesignSystem.Colors.textSecondary)
+        .cornerRadius(DesignSystem.CornerRadius.small)
     }
 }
 

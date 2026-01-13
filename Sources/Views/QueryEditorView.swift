@@ -13,62 +13,83 @@ struct QueryEditorView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Query input area
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
+            // Query input area with toolbar
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                // Toolbar
+                HStack(spacing: DesignSystem.Spacing.md) {
                     Text("SQL 查询")
-                        .font(.headline)
-                        .foregroundColor(.primary)
+                        .font(DesignSystem.Typography.title3)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
                     
                     Spacer()
                     
-                    Button(action: {
-                        viewModel.executeQuery()
-                    }) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "play.fill")
-                            Text("执行查询")
+                    // 工具按钮
+                    HStack(spacing: DesignSystem.Spacing.xs) {
+                        // 执行按钮
+                        Button(action: { viewModel.executeQuery() }) {
+                            Label("执行", systemImage: "play.fill")
+                                .font(DesignSystem.Typography.body)
                         }
-                        .font(.body)
-                        .fontWeight(.medium)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(viewModel.isExecuting ? Color.gray : Color.blue)
-                        .cornerRadius(8)
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .disabled(viewModel.isExecuting)
+                        .keyboardShortcut(.return, modifiers: .command)
+                        .help("执行 SQL 查询 (⌘+Enter)")
+                        
+                        // 保存查询按钮
+                        Button(action: { /* TODO: Save query */ }) {
+                            Image(systemName: "square.and.arrow.down")
+                                .font(DesignSystem.Typography.body)
+                        }
+                        .buttonStyle(.borderless)
+                        .help("保存查询")
+                        
+                        // 格式化按钮
+                        Button(action: { /* TODO: Format SQL */ }) {
+                            Image(systemName: "wand.and.stars")
+                                .font(DesignSystem.Typography.body)
+                        }
+                        .buttonStyle(.borderless)
+                        .help("格式化 SQL")
                     }
-                    .buttonStyle(.plain)
-                    .disabled(viewModel.isExecuting)
-                    .keyboardShortcut(.return, modifiers: .command)
-                    .help("执行 SQL 查询 (⌘+Enter)")
                 }
-                .padding(.horizontal)
-                .padding(.top, 12)
+                .padding(.horizontal, DesignSystem.Spacing.lg)
+                .padding(.top, DesignSystem.Spacing.md)
                 
-                // Text editor for SQL
-                TextEditor(text: $viewModel.sqlQuery)
-                    .font(.system(.body, design: .monospaced))
-                    .frame(height: 120)
-                    .padding(8)
-                    .background(Color(NSColor.textBackgroundColor))
-                    .cornerRadius(8)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                    )
-                    .padding(.horizontal)
+                // SQL 编辑器（带行号）
+                HStack(alignment: .top, spacing: 0) {
+                    // 行号
+                    LineNumberView(lineCount: viewModel.sqlQuery.components(separatedBy: "\n").count)
+                        .frame(width: 40)
+                    
+                    Divider()
+                    
+                    // 文本编辑器
+                    TextEditor(text: $viewModel.sqlQuery)
+                        .font(DesignSystem.Typography.code)
+                        .scrollContentBackground(.hidden)
+                        .background(DesignSystem.Colors.background)
+                }
+                .frame(height: 150)
+                .background(DesignSystem.Colors.background)
+                .cornerRadius(DesignSystem.CornerRadius.medium)
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium)
+                        .stroke(DesignSystem.Colors.separator, lineWidth: 1)
+                )
+                .padding(.horizontal, DesignSystem.Spacing.lg)
                 
-                // Placeholder text when empty
+                // Placeholder提示
                 if viewModel.sqlQuery.isEmpty {
                     Text("输入 SQL 查询，例如: SELECT * FROM table_name")
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 24)
-                        .padding(.top, -100)
+                        .font(DesignSystem.Typography.body)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                        .padding(.horizontal, 64)  // 40 (line numbers) + 24 (padding)
+                        .padding(.top, -125)
                         .allowsHitTesting(false)
                 }
             }
-            .padding(.bottom, 12)
+            .padding(.bottom, DesignSystem.Spacing.md)
             
             Divider()
             
@@ -83,6 +104,25 @@ struct QueryEditorView: View {
                 EmptyResultView()
             }
         }
+    }
+}
+
+/// 行号视图
+struct LineNumberView: View {
+    let lineCount: Int
+    
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 0) {
+            ForEach(1...max(1, lineCount), id: \.self) { lineNumber in
+                Text("\(lineNumber)")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                    .frame(height: 14.5)  // 匹配默认行高
+            }
+        }
+        .padding(.vertical, DesignSystem.Spacing.sm)
+        .padding(.horizontal, 6)
+        .background(DesignSystem.Colors.secondaryBackground)
     }
 }
 
@@ -294,18 +334,23 @@ struct ResultDataCell: View {
     let text: String
     let isEvenRow: Bool
     
+    var isNull: Bool {
+        text.isEmpty
+    }
+    
     var body: some View {
-        Text(text.isEmpty ? "NULL" : text)
-            .font(.system(size: 12))
-            .foregroundColor(text.isEmpty ? .secondary : .primary)
+        Text(isNull ? "null" : text)
+            .font(DesignSystem.Typography.code)
+            .italic(isNull)
+            .foregroundColor(isNull ? DesignSystem.Colors.textSecondary : DesignSystem.Colors.textPrimary)
             .frame(width: 150, alignment: .leading)
-            .padding(.horizontal, 12)
+            .padding(.horizontal, DesignSystem.Spacing.md)
             .padding(.vertical, 6)
-            .background(isEvenRow ? Color.clear : Color.gray.opacity(0.03))
+            .background(isEvenRow ? Color.clear : DesignSystem.Colors.secondaryBackground.opacity(0.3))
             .overlay(
                 Rectangle()
                     .frame(width: 1, height: nil, alignment: .trailing)
-                    .foregroundColor(Color.gray.opacity(0.1)),
+                    .foregroundColor(DesignSystem.Colors.separator),
                 alignment: .trailing
             )
     }

@@ -95,73 +95,142 @@ struct MainView: View {
     }
 }
 
-/// 顶部工具栏
+/// 顶部工具栏 (macOS 标准样式)
 struct TopToolbar: View {
     let fileName: String
     let tableCount: Int
     let onClear: () -> Void
     let onAddFile: () -> Void
+    @State private var showingSettings = false
+    @State private var showingHelp = false
     
     var body: some View {
-        HStack {
-            // Logo 和标题
-            HStack(spacing: 12) {
+        HStack(spacing: DesignSystem.Spacing.lg) {
+            // Logo和标题 (左侧)
+            HStack(spacing: DesignSystem.Spacing.sm) {
                 Image(systemName: "tablecells")
-                    .font(.title2)
-                    .foregroundColor(.blue)
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundColor(DesignSystem.Colors.accent)
                 
                 Text("TableQuery")
-                    .font(.title2)
-                    .fontWeight(.bold)
+                    .font(DesignSystem.Typography.title2)
+                    .fontWeight(.semibold)
             }
             
             Spacer()
             
-            // 操作按钮
-            HStack(spacing: 12) {
+            // 操作按钮 (右侧)
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                // 表计数标签
                 if tableCount > 0 {
-                    // 表计数
-                    HStack(spacing: 6) {
-                        Image(systemName: "tablecells")
-                            .foregroundColor(.secondary)
-                        
-                        Text("\(tableCount) 个表")
-                            .font(.body)
-                            .foregroundColor(.primary)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(6)
+                    Text("\(tableCount) 个表")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                        .padding(.horizontal, DesignSystem.Spacing.sm)
+                        .padding(.vertical, 4)
+                        .background(DesignSystem.Colors.secondaryBackground)
+                        .cornerRadius(DesignSystem.CornerRadius.small)
                     
                     // 添加文件按钮
                     Button(action: onAddFile) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "plus")
-                            Text("添加文件")
-                        }
-                        .font(.body)
-                        .foregroundColor(.blue)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.blue.opacity(0.1))
-                        .cornerRadius(6)
+                        Label("添加文件", systemImage: "plus")
+                            .font(DesignSystem.Typography.body)
                     }
-                    .buttonStyle(.plain)
-                    .help("添加更多数据文件")
+                    .buttonStyle(.borderless)
+                    .help("添加更多数据文件 (⌘+N)")
                     
                     // 清除按钮
                     Button(action: onClear) {
                         Image(systemName: "trash")
-                            .foregroundColor(.red)
                     }
-                    .buttonStyle(.plain)
-                    .help("清除所有数据")
+                    .buttonStyle(.borderless)
+                    .help("清除所有数据 (⌘+W)")
+                }
+                
+                Divider()
+                    .frame(height: 20)
+                
+                // 设置按钮
+                Button(action: { showingSettings = true }) {
+                    Image(systemName: "gear")
+                }
+                .buttonStyle(.borderless)
+                .help("设置")
+                .popover(isPresented: $showingSettings) {
+                    SettingsView()
+                }
+                
+                // 帮助按钮
+                Button(action: { showingHelp = true }) {
+                    Image(systemName: "questionmark.circle")
+                }
+                .buttonStyle(.borderless)
+                .help("帮助")
+                .popover(isPresented: $showingHelp) {
+                    HelpView()
                 }
             }
         }
+        .padding(.horizontal, DesignSystem.Spacing.lg)
+        .padding(.vertical, DesignSystem.Spacing.md)
+        .background(DesignSystem.Colors.background)
+    }
+}
+
+/// 设置视图 (简单版本)
+struct SettingsView: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            Text("设置")
+                .font(DesignSystem.Typography.title3)
+                .fontWeight(.semibold)
+            
+            Divider()
+            
+            Text("将来版本中提供更多设置选项")
+                .font(DesignSystem.Typography.body)
+                .foregroundColor(DesignSystem.Colors.textSecondary)
+        }
         .padding()
-        .background(Color(NSColor.windowBackgroundColor))
+        .frame(width: 300)
+    }
+}
+
+/// 帮助视图 (简单版本)
+struct HelpView: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            Text("快捷键")
+                .font(DesignSystem.Typography.title3)
+                .fontWeight(.semibold)
+            
+            Divider()
+            
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                HelpRow(key: "⌘+N", description: "添加文件")
+                HelpRow(key: "⌘+Enter", description: "执行查询")
+                HelpRow(key: "⌘+W", description: "清除数据")
+            }
+            .font(DesignSystem.Typography.body)
+        }
+        .padding()
+        .frame(width: 250)
+    }
+}
+
+struct HelpRow: View {
+    let key: String
+    let description: String
+    
+    var body: some View {
+        HStack {
+            Text(key)
+                .font(DesignSystem.Typography.code)
+                .foregroundColor(DesignSystem.Colors.textSecondary)
+            Spacer()
+            Text(description)
+                .foregroundColor(DesignSystem.Colors.textPrimary)
+        }
     }
 }
 
