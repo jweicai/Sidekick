@@ -14,8 +14,11 @@ struct SQLTextEditor: NSViewRepresentable {
     @Binding var text: String
     
     func makeNSView(context: Context) -> NSScrollView {
-        let scrollView = NSScrollView()
-        let textView = NSTextView()
+        let scrollView = NSTextView.scrollableTextView()
+        
+        guard let textView = scrollView.documentView as? NSTextView else {
+            return scrollView
+        }
         
         // 配置 NSTextView
         textView.isEditable = true
@@ -24,6 +27,7 @@ struct SQLTextEditor: NSViewRepresentable {
         textView.font = NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
         textView.textColor = NSColor.textColor
         textView.backgroundColor = NSColor.textBackgroundColor
+        textView.drawsBackground = true
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.isAutomaticTextReplacementEnabled = false
@@ -33,19 +37,19 @@ struct SQLTextEditor: NSViewRepresentable {
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = false
         textView.textContainer?.widthTracksTextView = true
-        textView.textContainer?.containerSize = NSSize(width: scrollView.contentSize.width, height: CGFloat.greatestFiniteMagnitude)
+        textView.textContainerInset = NSSize(width: 8, height: 8)
         
         // 设置初始文本
         textView.string = text
         
+        // 设置代理
+        textView.delegate = context.coordinator
+        
         // 配置 ScrollView
-        scrollView.documentView = textView
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = false
         scrollView.autohidesScrollers = true
-        
-        // 设置代理
-        textView.delegate = context.coordinator
+        scrollView.borderType = .noBorder
         
         return scrollView
     }
@@ -53,8 +57,11 @@ struct SQLTextEditor: NSViewRepresentable {
     func updateNSView(_ nsView: NSScrollView, context: Context) {
         guard let textView = nsView.documentView as? NSTextView else { return }
         
+        // 只有当文本不同时才更新，避免光标跳动
         if textView.string != text {
+            let selectedRanges = textView.selectedRanges
             textView.string = text
+            textView.selectedRanges = selectedRanges
         }
     }
     
@@ -71,10 +78,7 @@ struct SQLTextEditor: NSViewRepresentable {
         
         func textDidChange(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
-            
-            DispatchQueue.main.async {
-                self.parent.text = textView.string
-            }
+            parent.text = textView.string
         }
     }
 }
