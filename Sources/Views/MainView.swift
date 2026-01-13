@@ -47,7 +47,7 @@ struct MainView: View {
                 .onAppear {
                     loadAllTablesToQueryEngine()
                 }
-                .onChange(of: viewModel.loadedTables.count) { _ in
+                .onChange(of: viewModel.loadedTables.count) {
                     loadAllTablesToQueryEngine()
                 }
             } else {

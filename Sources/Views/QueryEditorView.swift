@@ -56,28 +56,10 @@ struct QueryEditorView: View {
                 .padding(.horizontal, DesignSystem.Spacing.lg)
                 .padding(.top, DesignSystem.Spacing.md)
                 
-                // SQL 编辑器（使用 NSTextView）
-                ZStack(alignment: .topLeading) {
-                    SQLTextEditor(text: $viewModel.sqlQuery)
-                        .frame(height: 150)
-                    
-                    // Placeholder提示 - 只在文本为空时显示
-                    if viewModel.sqlQuery.isEmpty {
-                        Text("输入 SQL 查询，例如: SELECT * FROM table_name")
-                            .font(DesignSystem.Typography.body)
-                            .foregroundColor(DesignSystem.Colors.textSecondary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 12)
-                            .allowsHitTesting(false)
-                    }
-                }
-                .background(Color(NSColor.textBackgroundColor))
-                .cornerRadius(DesignSystem.CornerRadius.medium)
-                .overlay(
-                    RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.medium)
-                        .stroke(DesignSystem.Colors.separator, lineWidth: 1)
-                )
-                .padding(.horizontal, DesignSystem.Spacing.lg)
+                // SQL 编辑器 - 最简化版本
+                SQLTextEditor(text: $viewModel.sqlQuery)
+                    .frame(height: 150)
+                    .padding(.horizontal, DesignSystem.Spacing.lg)
             }
             .padding(.bottom, DesignSystem.Spacing.md)
             
