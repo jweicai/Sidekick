@@ -308,14 +308,28 @@ struct ProcessingContentView: View {
     let format: DataFormatType
     let method: ProcessingMethod
     
+    @State private var showUpgradeAlert = false
+    
     var body: some View {
+        let licenseManager = LicenseManager.shared
+        let toolId = "\(format.rawValue.lowercased()).\(method.id)"
+        
         Group {
-            // 根据格式和方法显示对应的处理界面
-            if format == .json && method.id == "flatten" {
-                JSONFlattenerView()
+            if licenseManager.canUseTool(toolId) {
+                // 有权限，显示功能界面
+                if format == .json && method.id == "flatten" {
+                    JSONFlattenerView()
+                } else {
+                    // 其他处理方式暂未实现
+                    ComingSoonView(format: format, method: method)
+                }
             } else {
-                // 其他处理方式暂未实现
-                ComingSoonView(format: format, method: method)
+                // 无权限，显示升级提示
+                UpgradeRequiredView(
+                    format: format,
+                    method: method,
+                    message: licenseManager.getUpgradeMessage(for: toolId)
+                )
             }
         }
     }
@@ -376,6 +390,72 @@ struct ComingSoonView: View {
                 .padding(.vertical, DesignSystem.Spacing.xs)
                 .background(DesignSystem.Colors.accent.opacity(0.1))
                 .cornerRadius(DesignSystem.CornerRadius.small)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(DesignSystem.Colors.background)
+    }
+}
+
+// MARK: - 升级提示视图
+
+struct UpgradeRequiredView: View {
+    let format: DataFormatType
+    let method: ProcessingMethod
+    let message: String
+    
+    var body: some View {
+        VStack(spacing: DesignSystem.Spacing.lg) {
+            ZStack {
+                Circle()
+                    .fill(DesignSystem.Colors.warning.opacity(0.1))
+                    .frame(width: 80, height: 80)
+                
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 32))
+                    .foregroundColor(DesignSystem.Colors.warning)
+            }
+            
+            VStack(spacing: DesignSystem.Spacing.xs) {
+                Text(method.name)
+                    .font(DesignSystem.Typography.title3)
+                    .fontWeight(.semibold)
+                
+                Text(method.description)
+                    .font(DesignSystem.Typography.body)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+            }
+            
+            VStack(spacing: DesignSystem.Spacing.sm) {
+                Text(message)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.textMuted)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+                
+                Button(action: {
+                    // TODO: 打开升级页面
+                    print("升级到专业版")
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 10))
+                        Text("升级解锁")
+                            .font(DesignSystem.Typography.captionMedium)
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, DesignSystem.Spacing.md)
+                    .padding(.vertical, 8)
+                    .background(
+                        LinearGradient(
+                            colors: [DesignSystem.Colors.warning, DesignSystem.Colors.warning.opacity(0.8)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .cornerRadius(DesignSystem.CornerRadius.medium)
+                }
+                .buttonStyle(.plain)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(DesignSystem.Colors.background)
@@ -816,6 +896,8 @@ struct SettingsView: View {
     @AppStorage("showLineNumbers") private var showLineNumbers = false
     @AppStorage("fontSize") private var fontSize = 13.0
     
+    @State private var licenseType: LicenseType = .free
+    
     var body: some View {
         VStack(spacing: 0) {
             // 标题栏
@@ -839,6 +921,11 @@ struct SettingsView: View {
             // 设置列表
             ScrollView {
                 VStack(spacing: 0) {
+                    // 许可证信息
+                    SettingsSection(title: "许可证") {
+                        LicenseInfoView()
+                    }
+                    
                     // 通用设置
                     SettingsSection(title: "通用") {
                         SettingsToggle(
@@ -981,3 +1068,317 @@ struct SettingsToggle: View {
         .padding(.vertical, DesignSystem.Spacing.sm)
     }
 }
+
+// MARK: - 许可证信息视图
+
+struct LicenseInfoView: View {
+    @State private var licenseType: LicenseType = .free
+    @State private var limits: FeatureLimits?
+    @State private var showActivationSheet = false
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("当前版本")
+                        .font(DesignSystem.Typography.body)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    HStack(spacing: 4) {
+                        Image(systemName: licenseIcon)
+                            .font(.system(size: 12))
+                            .foregroundColor(licenseColor)
+                        
+                        Text(licenseType.rawValue)
+                            .font(DesignSystem.Typography.bodyMedium)
+                            .foregroundColor(licenseColor)
+                    }
+                }
+                
+                Spacer()
+                
+                if licenseType == .free {
+                    Button(action: {
+                        showActivationSheet = true
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "star.fill")
+                                .font(.system(size: 10))
+                            Text("激活")
+                                .font(DesignSystem.Typography.caption)
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, DesignSystem.Spacing.sm)
+                        .padding(.vertical, 6)
+                        .background(DesignSystem.Colors.warning)
+                        .cornerRadius(DesignSystem.CornerRadius.small)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Button(action: {
+                        // 停用许可证
+                        LicenseManager.shared.deactivateLicense()
+                        refreshLicenseInfo()
+                    }) {
+                        Text("停用")
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                            .padding(.horizontal, DesignSystem.Spacing.sm)
+                            .padding(.vertical, 6)
+                            .background(DesignSystem.Colors.sidebarHover)
+                            .cornerRadius(DesignSystem.CornerRadius.small)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            
+            if let limits = limits {
+                Divider()
+                    .padding(.vertical, DesignSystem.Spacing.xs)
+                
+                VStack(alignment: .leading, spacing: 6) {
+                    LimitRow(icon: "tablecells", title: "数据表", value: limits.maxTables == Int.max ? "无限制" : "\(limits.maxTables) 个")
+                    LimitRow(icon: "list.number", title: "每表行数", value: limits.maxRowsPerTable == Int.max ? "无限制" : "\(limits.maxRowsPerTable) 行")
+                    LimitRow(icon: "square.and.arrow.up", title: "导出限制", value: limits.maxExportSize == Int.max ? "无限制" : "\(limits.maxExportSize) 行")
+                }
+            }
+        }
+        .padding(.horizontal, DesignSystem.Spacing.md)
+        .padding(.vertical, DesignSystem.Spacing.sm)
+        .onAppear {
+            refreshLicenseInfo()
+        }
+        .sheet(isPresented: $showActivationSheet) {
+            LicenseActivationView(onActivated: {
+                refreshLicenseInfo()
+            })
+        }
+    }
+    
+    private func refreshLicenseInfo() {
+        let manager = LicenseManager.shared
+        licenseType = manager.licenseType
+        limits = manager.limits
+    }
+    
+    private var licenseIcon: String {
+        switch licenseType {
+        case .free: return "person"
+        case .pro: return "star.fill"
+        case .enterprise: return "building.2.fill"
+        }
+    }
+    
+    private var licenseColor: Color {
+        switch licenseType {
+        case .free: return DesignSystem.Colors.textSecondary
+        case .pro: return DesignSystem.Colors.warning
+        case .enterprise: return DesignSystem.Colors.accent
+        }
+    }
+}
+
+struct LimitRow: View {
+    let icon: String
+    let title: String
+    let value: String
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 11))
+                .foregroundColor(DesignSystem.Colors.textMuted)
+                .frame(width: 16)
+            
+            Text(title)
+                .font(DesignSystem.Typography.caption)
+                .foregroundColor(DesignSystem.Colors.textSecondary)
+            
+            Spacer()
+            
+            Text(value)
+                .font(DesignSystem.Typography.caption)
+                .foregroundColor(DesignSystem.Colors.textPrimary)
+                .fontWeight(.medium)
+        }
+    }
+}
+
+// MARK: - 许可证激活视图
+
+struct LicenseActivationView: View {
+    @Environment(\.dismiss) var dismiss
+    @State private var licenseKey = ""
+    @State private var isActivating = false
+    @State private var errorMessage: String?
+    @State private var successMessage: String?
+    
+    let onActivated: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // 标题栏
+            HStack {
+                Text("激活许可证")
+                    .font(DesignSystem.Typography.title3)
+                    .fontWeight(.semibold)
+                
+                Spacer()
+                
+                Button(action: { dismiss() }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(DesignSystem.Colors.textMuted)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(DesignSystem.Spacing.lg)
+            
+            Divider()
+            
+            // 内容
+            VStack(spacing: DesignSystem.Spacing.lg) {
+                // 说明
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                    Text("输入您的许可证密钥")
+                        .font(DesignSystem.Typography.body)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    Text("购买后您会收到一个许可证密钥，格式为 XXXX-XXXX-XXXX-XXXX")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                }
+                
+                // 输入框
+                TextField("XXXX-XXXX-XXXX-XXXX", text: $licenseKey)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 14, design: .monospaced))
+                    .padding(DesignSystem.Spacing.sm)
+                    .background(Color.white)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small)
+                            .stroke(DesignSystem.Colors.border, lineWidth: 1)
+                    )
+                
+                // 错误信息
+                if let error = errorMessage {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(DesignSystem.Colors.error)
+                        
+                        Text(error)
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.error)
+                        
+                        Spacer()
+                    }
+                    .padding(DesignSystem.Spacing.sm)
+                    .background(DesignSystem.Colors.error.opacity(0.1))
+                    .cornerRadius(DesignSystem.CornerRadius.small)
+                }
+                
+                // 成功信息
+                if let success = successMessage {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(DesignSystem.Colors.success)
+                        
+                        Text(success)
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.success)
+                        
+                        Spacer()
+                    }
+                    .padding(DesignSystem.Spacing.sm)
+                    .background(DesignSystem.Colors.success.opacity(0.1))
+                    .cornerRadius(DesignSystem.CornerRadius.small)
+                }
+                
+                // 按钮
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    Button(action: { dismiss() }) {
+                        Text("取消")
+                            .font(DesignSystem.Typography.body)
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(DesignSystem.Colors.sidebarHover)
+                            .cornerRadius(DesignSystem.CornerRadius.medium)
+                    }
+                    .buttonStyle(.plain)
+                    
+                    Button(action: activateLicense) {
+                        HStack(spacing: 4) {
+                            if isActivating {
+                                ProgressView()
+                                    .scaleEffect(0.8)
+                                    .tint(.white)
+                            }
+                            Text(isActivating ? "激活中..." : "激活")
+                                .font(DesignSystem.Typography.bodyMedium)
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(DesignSystem.Colors.accent)
+                        .cornerRadius(DesignSystem.CornerRadius.medium)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(licenseKey.isEmpty || isActivating)
+                }
+                
+                Divider()
+                
+                // 购买链接
+                VStack(spacing: DesignSystem.Spacing.xs) {
+                    Text("还没有许可证？")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                    
+                    Button(action: {
+                        // TODO: 打开购买页面
+                        if let url = URL(string: "https://your-store.com/tablequery") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }) {
+                        Text("立即购买")
+                            .font(DesignSystem.Typography.captionMedium)
+                            .foregroundColor(DesignSystem.Colors.accent)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(DesignSystem.Spacing.lg)
+        }
+        .frame(width: 480, height: 400)
+        .background(DesignSystem.Colors.background)
+    }
+    
+    private func activateLicense() {
+        errorMessage = nil
+        successMessage = nil
+        isActivating = true
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            let result = LicenseManager.shared.activateLicense(key: licenseKey)
+            
+            isActivating = false
+            
+            if result.success {
+                successMessage = result.message
+                onActivated()
+                
+                // 2秒后自动关闭
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                    dismiss()
+                }
+            } else {
+                errorMessage = result.message
+            }
+        }
+    }
+}
+
+

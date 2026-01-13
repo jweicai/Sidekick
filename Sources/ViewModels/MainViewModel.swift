@@ -78,6 +78,7 @@ class MainViewModel: ObservableObject {
     // MARK: - Private Properties
     
     private let loaderManager = FileLoaderManager.shared
+    private let licenseManager = LicenseManager.shared
     private var cancellables = Set<AnyCancellable>()
     private var tableCounter = 0  // 用于生成 table1, table2, ...
     
@@ -93,6 +94,12 @@ class MainViewModel: ObservableObject {
     
     /// 加载文件
     func loadFile(url: URL) {
+        // 检查表数量限制
+        if !licenseManager.canAddMoreTables(currentCount: loadedTables.count) {
+            errorMessage = licenseManager.getLimitMessage(for: "tables")
+            return
+        }
+        
         isLoading = true
         errorMessage = nil
         fileName = url.lastPathComponent
@@ -131,6 +138,12 @@ class MainViewModel: ObservableObject {
     
     /// 从剪贴板加载数据
     func loadFromClipboard() {
+        // 检查表数量限制
+        if !licenseManager.canAddMoreTables(currentCount: loadedTables.count) {
+            errorMessage = licenseManager.getLimitMessage(for: "tables")
+            return
+        }
+        
         isLoading = true
         errorMessage = nil
         

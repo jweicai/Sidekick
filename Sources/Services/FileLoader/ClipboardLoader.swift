@@ -11,8 +11,6 @@ import AppKit
 /// 剪贴板数据加载器 - 支持 Tab 分隔的表格数据
 struct ClipboardLoader {
     
-    static let maxRows = 1000  // 最大行数限制
-    
     /// 从剪贴板加载数据
     static func loadFromClipboard() throws -> (dataFrame: DataFrame, isTruncated: Bool, originalRowCount: Int) {
         let pasteboard = NSPasteboard.general
@@ -35,6 +33,10 @@ struct ClipboardLoader {
         }
         
         let originalRowCount = lines.count
+        
+        // 使用许可证管理器获取最大行数限制
+        let licenseManager = LicenseManager.shared
+        let maxRows = licenseManager.getMaxImportRows(requestedRows: originalRowCount)
         let isTruncated = originalRowCount > maxRows
         
         // 如果超过最大行数，只取前 maxRows 行
