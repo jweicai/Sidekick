@@ -41,6 +41,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // 设置应用激活策略为常规应用（而不是辅助应用）
         NSApp.setActivationPolicy(.regular)
         
+        // 强制使用浅色模式（禁用深色模式）
+        NSApp.appearance = NSAppearance(named: .aqua)
+        
         // 确保应用成为活动应用
         NSApp.activate(ignoringOtherApps: true)
     }
