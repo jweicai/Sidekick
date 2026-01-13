@@ -12,17 +12,19 @@ import UniformTypeIdentifiers
 struct MainView: View {
     @StateObject private var viewModel = MainViewModel()
     @StateObject private var queryViewModel = QueryViewModel()
-    @State private var selectedFeature: FeatureType = .tables
+    @State private var selectedFormat: DataFormatType = .tables
+    @State private var selectedMethod: ProcessingMethod?
     
     var body: some View {
         HStack(spacing: 0) {
-            // 第一栏：功能图标栏
-            FeatureSidebar(selectedFeature: $selectedFeature)
+            // 第一栏：数据格式图标栏
+            DataFormatSidebar(selectedFormat: $selectedFormat, selectedMethod: $selectedMethod)
             
-            // 第二栏：根据选中的功能显示不同内容
+            // 第二栏：处理方式列表或特殊内容
             Group {
-                switch selectedFeature {
+                switch selectedFormat {
                 case .tables:
+                    // 数据表直接显示表列表
                     LoadedTablesView(
                         viewModel: viewModel,
                         onTableRemoved: { tableName in
@@ -32,7 +34,15 @@ struct MainView: View {
                     )
                     
                 case .settings:
+                    // 设置直接显示设置页面
                     SettingsView()
+                    
+                default:
+                    // 其他格式显示处理方式列表
+                    ProcessingMethodListView(
+                        format: selectedFormat,
+                        selectedMethod: $selectedMethod
+                    )
                 }
             }
             .frame(width: 240)
@@ -42,8 +52,22 @@ struct MainView: View {
                 .fill(Color.black.opacity(0.15))
                 .frame(width: 1)
             
-            // 第三栏：SQL 编辑器和结果集
-            QueryEditorView(viewModel: queryViewModel)
+            // 第三栏：主内容区域
+            Group {
+                if selectedFormat == .tables {
+                    // 数据表：显示 SQL 编辑器和结果集
+                    QueryEditorView(viewModel: queryViewModel)
+                } else if selectedFormat == .settings {
+                    // 设置：显示空白（设置内容已在第二栏显示）
+                    EmptyContentView(message: "在左侧配置应用设置")
+                } else if let method = selectedMethod {
+                    // 其他格式：显示对应的处理界面
+                    ProcessingContentView(format: selectedFormat, method: method)
+                } else {
+                    // 未选择处理方式
+                    EmptyContentView(message: "请在左侧选择一个处理方式")
+                }
+            }
         }
         .frame(minWidth: 1100, minHeight: 700)
         .onAppear {
@@ -101,24 +125,268 @@ struct MainView: View {
     }
 }
 
-// MARK: - 功能类型
+// MARK: - 数据格式类型
 
-enum FeatureType: String, CaseIterable {
+enum DataFormatType: String, CaseIterable {
     case tables = "数据表"
+    case json = "JSON"
+    case ip = "IP"
+    case timestamp = "时间戳"
+    case text = "文本"
+    case other = "其他"
     case settings = "设置"
     
     var icon: String {
         switch self {
         case .tables: return "cylinder.split.1x2"
+        case .json: return "curlybraces.square"
+        case .ip: return "network"
+        case .timestamp: return "clock"
+        case .text: return "doc.text"
+        case .other: return "square.grid.2x2"
         case .settings: return "gearshape"
+        }
+    }
+    
+    // 获取该数据格式的处理方式列表
+    var processingMethods: [ProcessingMethod] {
+        switch self {
+        case .tables:
+            return [] // 数据表不需要处理方式列表，直接显示表列表
+        case .json:
+            return [
+                ProcessingMethod(id: "flatten", name: "扁平化", icon: "arrow.down.right.and.arrow.up.left", description: "列式 JSON → 行式 JSON"),
+                ProcessingMethod(id: "format", name: "格式化", icon: "text.alignleft", description: "美化 JSON 格式"),
+                ProcessingMethod(id: "compress", name: "压缩", icon: "arrow.up.left.and.arrow.down.right", description: "移除空格和换行"),
+                ProcessingMethod(id: "validate", name: "验证", icon: "checkmark.shield", description: "检查 JSON 格式"),
+                ProcessingMethod(id: "path", name: "路径查询", icon: "arrow.triangle.branch", description: "JSONPath 查询")
+            ]
+        case .ip:
+            return [
+                ProcessingMethod(id: "convert", name: "格式转换", icon: "arrow.left.arrow.right", description: "IP ↔ 整数 ↔ 十六进制"),
+                ProcessingMethod(id: "subnet", name: "子网计算", icon: "network", description: "CIDR 子网信息"),
+                ProcessingMethod(id: "validate", name: "地址验证", icon: "checkmark.circle", description: "验证 IP 格式"),
+                ProcessingMethod(id: "batch", name: "批量处理", icon: "list.bullet", description: "批量转换 IP 列表")
+            ]
+        case .timestamp:
+            return [
+                ProcessingMethod(id: "toDate", name: "转日期", icon: "calendar", description: "时间戳 → 日期时间"),
+                ProcessingMethod(id: "toTimestamp", name: "转时间戳", icon: "clock", description: "日期时间 → 时间戳"),
+                ProcessingMethod(id: "current", name: "当前时间", icon: "clock.badge.checkmark", description: "获取当前时间戳"),
+                ProcessingMethod(id: "calculate", name: "时间计算", icon: "plus.forwardslash.minus", description: "时间差和加减")
+            ]
+        case .text:
+            return [
+                ProcessingMethod(id: "base64", name: "Base64", icon: "textformat.abc", description: "编码/解码"),
+                ProcessingMethod(id: "url", name: "URL 编码", icon: "link", description: "URL 编码/解码"),
+                ProcessingMethod(id: "hash", name: "Hash", icon: "number", description: "MD5/SHA 计算")
+            ]
+        case .other:
+            return [
+                ProcessingMethod(id: "uuid", name: "UUID", icon: "key", description: "生成 UUID"),
+                ProcessingMethod(id: "color", name: "颜色转换", icon: "paintpalette", description: "HEX ↔ RGB"),
+                ProcessingMethod(id: "regex", name: "正则测试", icon: "text.magnifyingglass", description: "正则表达式测试")
+            ]
+        case .settings:
+            return [] // 设置不需要处理方式列表
         }
     }
 }
 
-// MARK: - 功能图标栏
+// MARK: - 处理方式
 
-struct FeatureSidebar: View {
-    @Binding var selectedFeature: FeatureType
+struct ProcessingMethod: Identifiable {
+    let id: String
+    let name: String
+    let icon: String
+    let description: String
+}
+
+// MARK: - 处理方式列表视图（第二栏）
+
+struct ProcessingMethodListView: View {
+    let format: DataFormatType
+    @Binding var selectedMethod: ProcessingMethod?
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // 标题栏
+            HStack {
+                Image(systemName: format.icon)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(DesignSystem.Colors.accent)
+                
+                Text(format.rawValue)
+                    .font(DesignSystem.Typography.bodyMedium)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                Spacer()
+            }
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .padding(.vertical, DesignSystem.Spacing.sm)
+            .background(DesignSystem.Colors.background)
+            
+            Divider()
+            
+            // 处理方式列表
+            ScrollView {
+                LazyVStack(spacing: 1) {
+                    ForEach(format.processingMethods) { method in
+                        ProcessingMethodRow(
+                            method: method,
+                            isSelected: selectedMethod?.id == method.id,
+                            onSelect: { selectedMethod = method }
+                        )
+                    }
+                }
+                .padding(.vertical, DesignSystem.Spacing.sm)
+            }
+            .background(DesignSystem.Colors.sidebarBackground)
+        }
+    }
+}
+
+// MARK: - 处理方式行
+
+struct ProcessingMethodRow: View {
+    let method: ProcessingMethod
+    let isSelected: Bool
+    let onSelect: () -> Void
+    
+    @State private var isHovering = false
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                Image(systemName: method.icon)
+                    .font(.system(size: 13))
+                    .foregroundColor(isSelected ? DesignSystem.Colors.accent : DesignSystem.Colors.textSecondary)
+                    .frame(width: 20)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(method.name)
+                        .font(DesignSystem.Typography.body)
+                        .fontWeight(isSelected ? .medium : .regular)
+                        .foregroundColor(DesignSystem.Colors.textPrimary)
+                    
+                    Text(method.description)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.textMuted)
+                        .lineLimit(1)
+                }
+                
+                Spacer()
+                
+                if isSelected {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(DesignSystem.Colors.accent)
+                }
+            }
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .padding(.vertical, DesignSystem.Spacing.sm)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small)
+                    .fill(isSelected ? DesignSystem.Colors.accent.opacity(0.1) : 
+                          (isHovering ? DesignSystem.Colors.sidebarHover : Color.clear))
+            )
+        }
+        .padding(.horizontal, DesignSystem.Spacing.xs)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onSelect)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: DesignSystem.Animation.fast)) {
+                isHovering = hovering
+            }
+        }
+    }
+}
+
+// MARK: - 处理内容视图（第三栏）
+
+struct ProcessingContentView: View {
+    let format: DataFormatType
+    let method: ProcessingMethod
+    
+    var body: some View {
+        Group {
+            // 根据格式和方法显示对应的处理界面
+            if format == .json && method.id == "flatten" {
+                JSONFlattenerView()
+            } else {
+                // 其他处理方式暂未实现
+                ComingSoonView(format: format, method: method)
+            }
+        }
+    }
+}
+
+// MARK: - 空内容视图
+
+struct EmptyContentView: View {
+    let message: String
+    
+    var body: some View {
+        VStack(spacing: DesignSystem.Spacing.md) {
+            Image(systemName: "arrow.left")
+                .font(.system(size: 32, weight: .light))
+                .foregroundColor(DesignSystem.Colors.textMuted)
+            
+            Text(message)
+                .font(DesignSystem.Typography.body)
+                .foregroundColor(DesignSystem.Colors.textSecondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(DesignSystem.Colors.background)
+    }
+}
+
+// MARK: - 即将推出视图
+
+struct ComingSoonView: View {
+    let format: DataFormatType
+    let method: ProcessingMethod
+    
+    var body: some View {
+        VStack(spacing: DesignSystem.Spacing.lg) {
+            ZStack {
+                Circle()
+                    .fill(DesignSystem.Colors.accent.opacity(0.1))
+                    .frame(width: 80, height: 80)
+                
+                Image(systemName: method.icon)
+                    .font(.system(size: 32))
+                    .foregroundColor(DesignSystem.Colors.accent)
+            }
+            
+            VStack(spacing: DesignSystem.Spacing.xs) {
+                Text(method.name)
+                    .font(DesignSystem.Typography.title3)
+                    .fontWeight(.semibold)
+                
+                Text(method.description)
+                    .font(DesignSystem.Typography.body)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+            }
+            
+            Text("即将推出")
+                .font(DesignSystem.Typography.caption)
+                .foregroundColor(DesignSystem.Colors.textMuted)
+                .padding(.horizontal, DesignSystem.Spacing.md)
+                .padding(.vertical, DesignSystem.Spacing.xs)
+                .background(DesignSystem.Colors.accent.opacity(0.1))
+                .cornerRadius(DesignSystem.CornerRadius.small)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(DesignSystem.Colors.background)
+    }
+}
+
+// MARK: - 数据格式图标栏（第一栏）
+
+struct DataFormatSidebar: View {
+    @Binding var selectedFormat: DataFormatType
+    @Binding var selectedMethod: ProcessingMethod?
     
     var body: some View {
         VStack(spacing: 0) {
@@ -149,26 +417,35 @@ struct FeatureSidebar: View {
             Divider()
                 .padding(.horizontal, DesignSystem.Spacing.sm)
             
-            // 功能图标
-            VStack(spacing: DesignSystem.Spacing.xs) {
-                ForEach([FeatureType.tables], id: \.self) { feature in
-                    FeatureIconButton(
-                        feature: feature,
-                        isSelected: selectedFeature == feature,
-                        action: { selectedFeature = feature }
-                    )
+            // 数据格式图标
+            ScrollView {
+                VStack(spacing: DesignSystem.Spacing.xs) {
+                    ForEach([DataFormatType.tables, .json, .ip, .timestamp, .text, .other], id: \.self) { format in
+                        DataFormatIconButton(
+                            format: format,
+                            isSelected: selectedFormat == format,
+                            action: {
+                                selectedFormat = format
+                                // 切换格式时清除选中的处理方式
+                                selectedMethod = nil
+                            }
+                        )
+                    }
                 }
+                .padding(.top, DesignSystem.Spacing.md)
             }
-            .padding(.top, DesignSystem.Spacing.md)
             
             Spacer()
             
-            // 底部功能
+            // 底部设置
             VStack(spacing: DesignSystem.Spacing.xs) {
-                FeatureIconButton(
-                    feature: .settings,
-                    isSelected: selectedFeature == .settings,
-                    action: { selectedFeature = .settings }
+                DataFormatIconButton(
+                    format: .settings,
+                    isSelected: selectedFormat == .settings,
+                    action: {
+                        selectedFormat = .settings
+                        selectedMethod = nil
+                    }
                 )
             }
             .padding(.bottom, DesignSystem.Spacing.lg)
@@ -178,10 +455,10 @@ struct FeatureSidebar: View {
     }
 }
 
-// MARK: - 功能图标按钮
+// MARK: - 数据格式图标按钮
 
-struct FeatureIconButton: View {
-    let feature: FeatureType
+struct DataFormatIconButton: View {
+    let format: DataFormatType
     let isSelected: Bool
     let action: () -> Void
     
@@ -190,12 +467,12 @@ struct FeatureIconButton: View {
     var body: some View {
         Button(action: action) {
             VStack(spacing: 4) {
-                Image(systemName: feature.icon)
+                Image(systemName: format.icon)
                     .font(.system(size: 18))
                     .foregroundColor(isSelected ? DesignSystem.Colors.accent : 
                                     (isHovering ? DesignSystem.Colors.navTextActive : DesignSystem.Colors.navText))
                 
-                Text(feature.rawValue)
+                Text(format.rawValue)
                     .font(.system(size: 9))
                     .foregroundColor(isSelected ? DesignSystem.Colors.accent : 
                                     (isHovering ? DesignSystem.Colors.navTextActive : DesignSystem.Colors.navText))
@@ -213,7 +490,7 @@ struct FeatureIconButton: View {
                 isHovering = hovering
             }
         }
-        .help(feature.rawValue)
+        .help(format.rawValue)
     }
 }
 
@@ -275,6 +552,260 @@ struct ErrorView: View {
 
 #Preview {
     MainView()
+}
+
+// MARK: - JSON 扁平化视图
+
+struct JSONFlattenerView: View {
+    @State private var inputJSON: String = ""
+    @State private var outputJSON: String = ""
+    @State private var errorMessage: String?
+    @State private var isProcessing = false
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // 标题栏
+            HStack {
+                Image(systemName: "curlybraces.square")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(DesignSystem.Colors.accent)
+                
+                Text("JSON 扁平化")
+                    .font(DesignSystem.Typography.bodyMedium)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                Spacer()
+            }
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .padding(.vertical, DesignSystem.Spacing.sm)
+            .background(DesignSystem.Colors.background)
+            
+            Divider()
+            
+            // 说明文本
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                Text("将列式 JSON 转换为扁平 JSON")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                
+                Text("示例：{\"name\":[\"A\",\"B\"]} → [{\"name\":\"A\"},{\"name\":\"B\"}]")
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundColor(DesignSystem.Colors.textMuted)
+            }
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .padding(.vertical, DesignSystem.Spacing.sm)
+            .background(DesignSystem.Colors.sidebarHover)
+            
+            Divider()
+            
+            // 操作按钮
+            VStack(spacing: DesignSystem.Spacing.sm) {
+                // 粘贴按钮
+                Button(action: pasteFromClipboard) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "doc.on.clipboard")
+                            .font(.system(size: 11))
+                        Text("粘贴 JSON")
+                            .font(DesignSystem.Typography.caption)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(DesignSystem.Colors.accent.opacity(0.1))
+                    .foregroundColor(DesignSystem.Colors.accent)
+                    .cornerRadius(DesignSystem.CornerRadius.small)
+                }
+                .buttonStyle(.plain)
+                
+                // 转换按钮
+                Button(action: flattenJSON) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 11))
+                        Text(isProcessing ? "转换中..." : "转换")
+                            .font(DesignSystem.Typography.caption)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(DesignSystem.Colors.accent)
+                    .foregroundColor(.white)
+                    .cornerRadius(DesignSystem.CornerRadius.small)
+                }
+                .buttonStyle(.plain)
+                .disabled(inputJSON.isEmpty || isProcessing)
+                
+                // 复制结果按钮
+                Button(action: copyToClipboard) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "doc.on.doc")
+                            .font(.system(size: 11))
+                        Text("复制结果")
+                            .font(DesignSystem.Typography.caption)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(DesignSystem.Colors.success.opacity(0.1))
+                    .foregroundColor(DesignSystem.Colors.success)
+                    .cornerRadius(DesignSystem.CornerRadius.small)
+                }
+                .buttonStyle(.plain)
+                .disabled(outputJSON.isEmpty)
+                
+                // 清空按钮
+                Button(action: clearAll) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 11))
+                        Text("清空")
+                            .font(DesignSystem.Typography.caption)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(DesignSystem.Colors.error.opacity(0.1))
+                    .foregroundColor(DesignSystem.Colors.error)
+                    .cornerRadius(DesignSystem.CornerRadius.small)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, DesignSystem.Spacing.md)
+            .padding(.vertical, DesignSystem.Spacing.md)
+            
+            // 错误信息
+            if let error = errorMessage {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 10))
+                        Text("错误")
+                            .font(DesignSystem.Typography.caption)
+                            .fontWeight(.medium)
+                    }
+                    .foregroundColor(DesignSystem.Colors.error)
+                    
+                    Text(error)
+                        .font(.system(size: 10))
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                }
+                .padding(DesignSystem.Spacing.sm)
+                .background(DesignSystem.Colors.error.opacity(0.1))
+                .cornerRadius(DesignSystem.CornerRadius.small)
+                .padding(.horizontal, DesignSystem.Spacing.md)
+            }
+            
+            Spacer()
+        }
+        .background(DesignSystem.Colors.background)
+    }
+    
+    // MARK: - Actions
+    
+    private func pasteFromClipboard() {
+        let pasteboard = NSPasteboard.general
+        if let string = pasteboard.string(forType: .string) {
+            inputJSON = string
+            errorMessage = nil
+        }
+    }
+    
+    private func flattenJSON() {
+        isProcessing = true
+        errorMessage = nil
+        outputJSON = ""
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                let flattened = try JSONFlattener.flatten(inputJSON)
+                DispatchQueue.main.async {
+                    outputJSON = flattened
+                    isProcessing = false
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    errorMessage = error.localizedDescription
+                    isProcessing = false
+                }
+            }
+        }
+    }
+    
+    private func copyToClipboard() {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(outputJSON, forType: .string)
+    }
+    
+    private func clearAll() {
+        inputJSON = ""
+        outputJSON = ""
+        errorMessage = nil
+    }
+}
+
+// MARK: - JSON 扁平化工具
+
+struct JSONFlattener {
+    static func flatten(_ jsonString: String) throws -> String {
+        guard let data = jsonString.data(using: .utf8) else {
+            throw JSONFlattenerError.invalidInput
+        }
+        
+        let jsonObject = try JSONSerialization.jsonObject(with: data)
+        
+        guard let dict = jsonObject as? [String: Any] else {
+            throw JSONFlattenerError.notColumnFormat
+        }
+        
+        // 检查是否是列式格式
+        var arrays: [[Any]] = []
+        var keys: [String] = []
+        var maxLength = 0
+        
+        for (key, value) in dict {
+            guard let array = value as? [Any] else {
+                throw JSONFlattenerError.notColumnFormat
+            }
+            keys.append(key)
+            arrays.append(array)
+            maxLength = max(maxLength, array.count)
+        }
+        
+        // 转换为行式格式
+        var result: [[String: Any]] = []
+        for i in 0..<maxLength {
+            var row: [String: Any] = [:]
+            for (index, key) in keys.enumerated() {
+                if i < arrays[index].count {
+                    row[key] = arrays[index][i]
+                } else {
+                    row[key] = NSNull()
+                }
+            }
+            result.append(row)
+        }
+        
+        let outputData = try JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys])
+        guard let outputString = String(data: outputData, encoding: .utf8) else {
+            throw JSONFlattenerError.conversionFailed
+        }
+        
+        return outputString
+    }
+}
+
+enum JSONFlattenerError: Error, LocalizedError {
+    case invalidInput
+    case notColumnFormat
+    case conversionFailed
+    
+    var errorDescription: String? {
+        switch self {
+        case .invalidInput:
+            return "无效的 JSON 输入"
+        case .notColumnFormat:
+            return "输入不是列式 JSON 格式"
+        case .conversionFailed:
+            return "转换失败"
+        }
+    }
 }
 
 // MARK: - 设置视图

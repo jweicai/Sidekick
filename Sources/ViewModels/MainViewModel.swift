@@ -112,6 +112,44 @@ class MainViewModel: ObservableObject {
         }
     }
     
+    /// 从剪贴板加载数据
+    func loadFromClipboard() {
+        isLoading = true
+        errorMessage = nil
+        
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            do {
+                let dataFrame = try ClipboardLoader.loadFromClipboard()
+                
+                DispatchQueue.main.async {
+                    guard let self = self else { return }
+                    self.tableCounter += 1
+                    let tableName = "table\(self.tableCounter)"
+                    let displayName = "剪贴板数据_\(self.tableCounter)"
+                    
+                    // 创建一个临时 URL（用于持久化，但实际不存在）
+                    let tempURL = URL(fileURLWithPath: NSTemporaryDirectory())
+                        .appendingPathComponent("clipboard_\(self.tableCounter).txt")
+                    
+                    let table = LoadedTable(
+                        name: tableName,
+                        displayName: displayName,
+                        dataFrame: dataFrame,
+                        sourceURL: tempURL
+                    )
+                    self.loadedTables.append(table)
+                    self.selectedTableId = table.id
+                    self.isLoading = false
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self?.errorMessage = error.localizedDescription
+                    self?.isLoading = false
+                }
+            }
+        }
+    }
+    
     /// 移除表
     func removeTable(id: UUID) {
         loadedTables.removeAll { $0.id == id }

@@ -23,17 +23,32 @@ struct LoadedTablesView: View {
                 
                 Spacer()
                 
-                // 添加按钮
-                Button(action: onAddFile) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(DesignSystem.Colors.textSecondary)
-                        .frame(width: 24, height: 24)
-                        .background(DesignSystem.Colors.sidebarHover)
-                        .cornerRadius(4)
+                // 按钮组
+                HStack(spacing: 4) {
+                    // 从剪贴板导入按钮
+                    Button(action: { viewModel.loadFromClipboard() }) {
+                        Image(systemName: "doc.on.clipboard")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                            .frame(width: 24, height: 24)
+                            .background(DesignSystem.Colors.sidebarHover)
+                            .cornerRadius(4)
+                    }
+                    .buttonStyle(.plain)
+                    .help("从剪贴板导入 (⌘+V)")
+                    
+                    // 添加文件按钮
+                    Button(action: onAddFile) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                            .frame(width: 24, height: 24)
+                            .background(DesignSystem.Colors.sidebarHover)
+                            .cornerRadius(4)
+                    }
+                    .buttonStyle(.plain)
+                    .help("添加数据文件 (⌘+N)")
                 }
-                .buttonStyle(.plain)
-                .help("添加数据文件 (⌘+N)")
             }
             .padding(.horizontal, DesignSystem.Spacing.md)
             .padding(.vertical, DesignSystem.Spacing.md)

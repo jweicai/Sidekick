@@ -512,6 +512,10 @@ struct ResultTableView: View {
                 LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
                     Section(header: 
                         HStack(spacing: 0) {
+                            // 行号列头
+                            ResultLineNumberHeaderCell()
+                            
+                            // 数据列头
                             ForEach(Array(result.columns.enumerated()), id: \.offset) { index, column in
                                 ResultHeaderCell(text: column)
                             }
@@ -520,6 +524,10 @@ struct ResultTableView: View {
                     ) {
                         ForEach(0..<result.rowCount, id: \.self) { rowIndex in
                             HStack(spacing: 0) {
+                                // 行号列
+                                ResultLineNumberCell(lineNumber: rowIndex + 1, isEvenRow: rowIndex % 2 == 0)
+                                
+                                // 数据列
                                 ForEach(0..<result.columns.count, id: \.self) { colIndex in
                                     ResultDataCell(
                                         text: result.rows[rowIndex][colIndex],
@@ -535,6 +543,44 @@ struct ResultTableView: View {
             }
             .background(Color.white)
         }
+    }
+}
+
+/// 行号列头单元格
+struct ResultLineNumberHeaderCell: View {
+    var body: some View {
+        Text("")
+            .font(.system(size: 11, weight: .semibold))
+            .frame(width: 50, alignment: .center)
+            .padding(.vertical, DesignSystem.Spacing.sm)
+            .background(DesignSystem.Colors.tableHeader)
+            .overlay(
+                Rectangle()
+                    .frame(width: 1)
+                    .foregroundColor(DesignSystem.Colors.border),
+                alignment: .trailing
+            )
+    }
+}
+
+/// 行号单元格
+struct ResultLineNumberCell: View {
+    let lineNumber: Int
+    let isEvenRow: Bool
+    
+    var body: some View {
+        Text("\(lineNumber)")
+            .font(.system(size: 11, weight: .regular, design: .monospaced))
+            .foregroundColor(DesignSystem.Colors.textMuted)
+            .frame(width: 50, alignment: .center)
+            .padding(.vertical, 6)
+            .background(isEvenRow ? DesignSystem.Colors.tableRowEven : DesignSystem.Colors.tableRowOdd)
+            .overlay(
+                Rectangle()
+                    .frame(width: 1)
+                    .foregroundColor(DesignSystem.Colors.borderLight),
+                alignment: .trailing
+            )
     }
 }
 
