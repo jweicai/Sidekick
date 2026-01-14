@@ -1,6 +1,6 @@
 //
 //  MainView.swift
-//  TableQuery
+//  Sidekick
 //
 //  Created on 2025-01-12.
 //
@@ -1134,7 +1134,7 @@ struct LicenseActivationView: View {
                     
                     Button(action: {
                         // TODO: 打开购买页面
-                        if let url = URL(string: "https://your-store.com/tablequery") {
+                        if let url = URL(string: "https://your-store.com/Sidekick") {
                             NSWorkspace.shared.open(url)
                         }
                     }) {

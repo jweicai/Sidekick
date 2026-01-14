@@ -1,8 +1,8 @@
-# Design Document: TableQuery MVP
+# Design Document: Sidekick MVP
 
 ## Overview
 
-TableQuery is a native macOS application built with Swift and SwiftUI that enables users to query data files using SQL without importing them into a database. The system loads data files (CSV, JSON) into an in-memory SQLite database, executes SQL queries, and provides data conversion capabilities.
+Sidekick is a native macOS application built with Swift and SwiftUI that enables users to query data files using SQL without importing them into a database. The system loads data files (CSV, JSON) into an in-memory SQLite database, executes SQL queries, and provides data conversion capabilities.
 
 The architecture follows the MVVM (Model-View-ViewModel) pattern with a plugin-based file loader system. The core workflow is: File Drop → Parse → Load to SQLite → Query → Display Results → Export.
 

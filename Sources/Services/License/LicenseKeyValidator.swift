@@ -1,6 +1,6 @@
 //
 //  LicenseKeyValidator.swift
-//  TableQuery
+//  Sidekick
 //
 //  Created on 2025-01-13.
 //
@@ -12,7 +12,7 @@ import CryptoKit
 struct LicenseKeyValidator {
     
     // 密钥（实际使用时应该混淆或加密）
-    private static let secretKey = "TableQuery-Secret-Key-2025"
+    private static let secretKey = "Sidekick-Secret-Key-2025"
     
     /// 生成许可证密钥
     /// - Parameters:

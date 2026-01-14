@@ -1,13 +1,13 @@
 //
 //  QueryViewModelTests.swift
-//  TableQuery
+//  Sidekick
 //
 //  Unit tests for QueryViewModel
 //
 
 import Testing
 import Foundation
-@testable import TableQuery
+@testable import Sidekick
 
 @Suite("QueryViewModel Tests")
 struct QueryViewModelTests {

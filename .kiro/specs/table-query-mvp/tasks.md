@@ -1,8 +1,8 @@
-# Implementation Plan: TableQuery MVP
+# Implementation Plan: Sidekick MVP
 
 ## Overview
 
-This implementation plan breaks down the TableQuery MVP into discrete coding tasks. The plan follows an incremental approach: build core functionality first, add SQL query capabilities, then add conversion features. Each task includes property-based tests to validate correctness.
+This implementation plan breaks down the Sidekick MVP into discrete coding tasks. The plan follows an incremental approach: build core functionality first, add SQL query capabilities, then add conversion features. Each task includes property-based tests to validate correctness.
 
 ## Tasks
 

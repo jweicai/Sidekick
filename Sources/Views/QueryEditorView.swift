@@ -1,6 +1,6 @@
 //
 //  QueryEditorView.swift
-//  TableQuery
+//  Sidekick
 //
 //  Created on 2025-01-13.
 //

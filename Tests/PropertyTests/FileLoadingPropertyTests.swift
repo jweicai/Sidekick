@@ -1,13 +1,13 @@
 //
 //  FileLoadingPropertyTests.swift
-//  TableQuery
+//  Sidekick
 //
 //  Property-based tests for file loading functionality
 //
 
 import Testing
 import Foundation
-@testable import TableQuery
+@testable import Sidekick
 
 @Suite("File Loading Properties")
 struct FileLoadingPropertyTests {

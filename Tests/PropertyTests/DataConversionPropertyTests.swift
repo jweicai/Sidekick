@@ -1,13 +1,13 @@
 //
 //  DataConversionPropertyTests.swift
-//  TableQuery
+//  Sidekick
 //
 //  Property-based tests for data conversion functionality
 //
 
 import Testing
 import Foundation
-@testable import TableQuery
+@testable import Sidekick
 
 @Suite("Data Conversion Properties")
 struct DataConversionPropertyTests {

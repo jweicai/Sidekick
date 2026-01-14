@@ -1,13 +1,13 @@
 //
 //  InsertStatementPropertyTests.swift
-//  TableQuery
+//  Sidekick
 //
 //  Property-based tests for INSERT statement generation
 //
 
 import Testing
 import Foundation
-@testable import TableQuery
+@testable import Sidekick
 
 @Suite("INSERT Statement Generation Properties")
 struct InsertStatementPropertyTests {

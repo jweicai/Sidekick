@@ -1,13 +1,13 @@
 //
 //  TypeInferencePropertyTests.swift
-//  TableQuery
+//  Sidekick
 //
 //  Property-based tests for type inference functionality
 //
 
 import Testing
 import Foundation
-@testable import TableQuery
+@testable import Sidekick
 
 @Suite("Type Inference Properties")
 struct TypeInferencePropertyTests {

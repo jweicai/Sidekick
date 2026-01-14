@@ -1,13 +1,13 @@
 //
 //  QueryResultPropertyTests.swift
-//  TableQuery
+//  Sidekick
 //
 //  Property-based tests for query result display
 //
 
 import Testing
 import Foundation
-@testable import TableQuery
+@testable import Sidekick
 
 @Suite("Query Result Display Properties")
 struct QueryResultPropertyTests {

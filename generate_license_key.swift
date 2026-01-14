@@ -5,7 +5,7 @@ import CryptoKit
 
 // 复制 LicenseKeyValidator 的逻辑用于生成测试密钥
 
-let secretKey = "TableQuery-Secret-Key-2025"
+let secretKey = "Sidekick-Secret-Key-2025"
 
 func generateSignature(data: String) -> String {
     let key = SymmetricKey(data: secretKey.data(using: .utf8)!)
@@ -49,7 +49,7 @@ func generateLicenseKey(email: String, licenseType: String, expiryDate: Date? = 
 }
 
 // 生成测试许可证
-print("=== TableQuery 许可证生成器 ===\n")
+print("=== Sidekick 许可证生成器 ===\n")
 
 // 免费版（不需要密钥）
 print("免费版：无需许可证密钥\n")

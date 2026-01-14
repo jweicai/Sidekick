@@ -170,7 +170,7 @@ SELECT * FROM users ORDER BY age DESC LIMIT 10;
 
 ## 数据类型支持
 
-TableQuery 自动推断以下数据类型：
+Sidekick 自动推断以下数据类型：
 
 - **INTEGER**: 整数（如 123, -456）
 - **REAL**: 浮点数（如 3.14, -2.5）

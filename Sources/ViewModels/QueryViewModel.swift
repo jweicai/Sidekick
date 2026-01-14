@@ -1,6 +1,6 @@
 //
 //  QueryViewModel.swift
-//  TableQuery
+//  Sidekick
 //
 //  Created on 2025-01-13.
 //
@@ -26,7 +26,7 @@ class QueryViewModel: ObservableObject {
     private var loadedTables: [String: DataFrame] = [:]
     private var cancellables = Set<AnyCancellable>()
     
-    private let sqlQueryPersistenceKey = "TableQuery.LastSQLQuery"
+    private let sqlQueryPersistenceKey = "Sidekick.LastSQLQuery"
     
     // MARK: - Initialization
     

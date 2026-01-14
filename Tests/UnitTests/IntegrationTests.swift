@@ -1,13 +1,13 @@
 //
 //  IntegrationTests.swift
-//  TableQuery
+//  Sidekick
 //
 //  Integration tests for UI state transitions and component integration
 //
 
 import Testing
 import Foundation
-@testable import TableQuery
+@testable import Sidekick
 
 @Suite("Integration Tests")
 struct IntegrationTests {
@@ -198,7 +198,7 @@ struct IntegrationTests {
     }
     
     @Test("Multi-table query workflow")
-    func multiTableQueryWorkflow() throws {
+    func multiSidekickWorkflow() throws {
         let queryViewModel = QueryViewModel()
         
         // Load users table

@@ -1,6 +1,6 @@
 //
 //  MainViewModel.swift
-//  TableQuery
+//  Sidekick
 //
 //  Created on 2025-01-12.
 //
@@ -82,7 +82,7 @@ class MainViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var tableCounter = 0  // 用于生成 table1, table2, ...
     
-    private let persistenceKey = "TableQuery.LoadedTables"
+    private let persistenceKey = "Sidekick.LoadedTables"
     
     // MARK: - Initialization
     

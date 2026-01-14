@@ -2,7 +2,7 @@
 
 ## 概述
 
-为 TableQuery 添加 Excel XLSX 文件格式支持，使用户能够直接加载和查询 Excel 文件。
+为 Sidekick 添加 Excel XLSX 文件格式支持，使用户能够直接加载和查询 Excel 文件。
 
 ## 实现方案
 
@@ -228,14 +228,14 @@ for colIndex in 0..<maxColumns {
 
 ## 总结
 
-成功为 TableQuery 添加了 XLSX 文件支持：
+成功为 Sidekick 添加了 XLSX 文件支持：
 - ✅ 使用 CoreXLSX 库实现解析
 - ✅ 重构代码提取类型推断工具类
 - ✅ 保持与现有加载器的一致性
 - ✅ 完整的错误处理
 - ✅ 良好的性能表现
 
-这使得 TableQuery 成为一个更加实用的数据查询工具，支持最常见的三种数据格式：CSV、JSON 和 XLSX。
+这使得 Sidekick 成为一个更加实用的数据查询工具，支持最常见的三种数据格式：CSV、JSON 和 XLSX。
 
 ---
 

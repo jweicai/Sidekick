@@ -12,7 +12,7 @@
 
 2. 点击 **Settings**（设置）
 
-3. 在 **Repository name** 输入框中，将 `QueryKit` 改为 `TableQuery`
+3. 在 **Repository name** 输入框中，将 `QueryKit` 改为 `Sidekick`
 
 4. 点击 **Rename** 按钮
 
@@ -25,7 +25,7 @@
 改名完成后，在终端执行：
 
 ```bash
-cd ~/tools/TableQuery
+cd ~/tools/Sidekick
 git push
 ```
 
@@ -34,7 +34,7 @@ git push
 ## ✅ 验证改名成功
 
 访问新地址确认：
-https://github.com/jweicai/TableQuery
+https://github.com/jweicai/Sidekick
 
 ---
 
@@ -51,10 +51,10 @@ https://github.com/jweicai/TableQuery
 ## 🎉 改名完成！
 
 改名后，你可以：
-1. 继续开发 TableQuery
+1. 继续开发 Sidekick
 2. 创建 Xcode 项目
 3. 开始编写代码
 
 ---
 
-**注意**：GitHub 会自动将 `QueryKit` 重定向到 `TableQuery`，所以旧链接仍然可用。
+**注意**：GitHub 会自动将 `QueryKit` 重定向到 `Sidekick`，所以旧链接仍然可用。

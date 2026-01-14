@@ -1,13 +1,13 @@
 //
 //  SQLQueryPropertyTests.swift
-//  TableQuery
+//  Sidekick
 //
 //  Property-based tests for SQL query execution
 //
 
 import Testing
 import Foundation
-@testable import TableQuery
+@testable import Sidekick
 
 @Suite("SQL Query Properties")
 struct SQLQueryPropertyTests {

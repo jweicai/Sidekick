@@ -2,7 +2,7 @@
 
 ## 问题背景
 
-在 TableQuery 项目中，SQL 查询编辑器无法接收键盘输入。这是一个典型的 SwiftUI macOS 应用键盘焦点问题，排查过程走了不少弯路，记录下来供参考。
+在 Sidekick 项目中，SQL 查询编辑器无法接收键盘输入。这是一个典型的 SwiftUI macOS 应用键盘焦点问题，排查过程走了不少弯路，记录下来供参考。
 
 ## 问题现象
 
@@ -269,7 +269,7 @@ import SwiftUI
 import AppKit
 
 @main
-struct TableQueryApp: App {
+struct SidekickApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     var body: some Scene {
@@ -333,7 +333,7 @@ NSApp.setActivationPolicy(.regular)
 
 ## 相关文件
 
-- `Sources/App/TableQueryApp.swift` - 包含 AppDelegate 的实现
+- `Sources/App/SidekickApp.swift` - 包含 AppDelegate 的实现
 - `Sources/Views/SQLTextEditor.swift` - 自定义文本编辑器（可选）
 - `docs/SwiftUI键盘输入问题解决方案.md` - 解决方案详细文档
 

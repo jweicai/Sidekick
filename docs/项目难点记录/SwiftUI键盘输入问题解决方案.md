@@ -40,7 +40,7 @@ import SwiftUI
 import AppKit
 
 @main
-struct TableQueryApp: App {
+struct SidekickApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     
     var body: some Scene {

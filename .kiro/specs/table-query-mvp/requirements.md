@@ -2,11 +2,11 @@
 
 ## Introduction
 
-TableQuery is a lightweight Mac application that enables users to query data files (CSV, JSON, Excel) using SQL without importing them into a database. The system provides instant data querying, format conversion, and SQL statement generation capabilities. This document specifies the requirements for the MVP version focusing on core functionality: file loading, SQL querying, and data conversion.
+Sidekick is a lightweight Mac application that enables users to query data files (CSV, JSON, Excel) using SQL without importing them into a database. The system provides instant data querying, format conversion, and SQL statement generation capabilities. This document specifies the requirements for the MVP version focusing on core functionality: file loading, SQL querying, and data conversion.
 
 ## Glossary
 
-- **System**: The TableQuery Mac application
+- **System**: The Sidekick Mac application
 - **Data_File**: A file containing structured data in CSV, JSON, or Excel format
 - **DataFrame**: An in-memory representation of tabular data with rows and columns
 - **SQL_Engine**: The component that executes SQL queries against loaded data

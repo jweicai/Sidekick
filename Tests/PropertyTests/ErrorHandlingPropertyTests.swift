@@ -1,13 +1,13 @@
 //
 //  ErrorHandlingPropertyTests.swift
-//  TableQuery
+//  Sidekick
 //
 //  Property-based tests for error handling
 //
 
 import Testing
 import Foundation
-@testable import TableQuery
+@testable import Sidekick
 
 @Suite("Error Handling Properties")
 struct ErrorHandlingPropertyTests {

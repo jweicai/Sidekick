@@ -1,6 +1,6 @@
 //
 //  LicenseManager.swift
-//  TableQuery
+//  Sidekick
 //
 //  Created on 2025-01-13.
 //
@@ -39,7 +39,7 @@ struct FeatureLimits {
 class LicenseManager {
     static let shared = LicenseManager()
     
-    private let licenseKey = "TableQuery.License"
+    private let licenseKey = "Sidekick.License"
     private var currentLicense: License?
     
     private init() {

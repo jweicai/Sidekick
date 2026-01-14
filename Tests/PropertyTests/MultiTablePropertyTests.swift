@@ -1,13 +1,13 @@
 //
 //  MultiTablePropertyTests.swift
-//  TableQuery
+//  Sidekick
 //
 //  Property-based tests for multi-table management
 //
 
 import Testing
 import Foundation
-@testable import TableQuery
+@testable import Sidekick
 
 @Suite("Multi-Table Management Properties")
 struct MultiTablePropertyTests {
