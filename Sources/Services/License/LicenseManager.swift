@@ -150,15 +150,21 @@ class LicenseManager {
     // MARK: - Feature Limits
     
     /// 获取当前版本的功能限制
+    /// 
+    /// ⚠️ 开发阶段配置：
+    /// 免费版暂时开放所有功能，便于测试和开发
+    /// 后续需要根据商业化策略调整各版本的功能限制
     var limits: FeatureLimits {
         switch licenseType {
         case .free:
+            // 🔓 开发阶段：免费版暂时开放所有功能
+            // TODO: 后续根据商业化策略调整以下限制
             return FeatureLimits(
-                maxRowsPerTable: 1000,
-                maxTables: 3,
-                maxExportSize: 1000,
-                allowedFormats: ["csv", "json"],
-                allowedTools: ["json.flatten", "json.format"]
+                maxRowsPerTable: Int.max,  // 暂时无限制 → 建议改为 1000
+                maxTables: Int.max,         // 暂时无限制 → 建议改为 3
+                maxExportSize: Int.max,     // 暂时无限制 → 建议改为 1000
+                allowedFormats: ["csv", "json", "xlsx", "sql", "parquet"],  // 所有格式 → 建议只保留 csv, json
+                allowedTools: []  // 空数组表示所有工具都可用 → 建议只开放基础工具
             )
         case .pro:
             return FeatureLimits(
@@ -208,10 +214,11 @@ class LicenseManager {
     
     /// 检查是否可以使用指定工具
     func canUseTool(_ toolId: String) -> Bool {
-        // 企业版所有工具都可用
-        if licenseType == .enterprise {
+        // 如果 allowedTools 为空，表示所有工具都可用
+        if limits.allowedTools.isEmpty {
             return true
         }
+        // 否则检查工具是否在允许列表中
         return limits.allowedTools.contains(toolId)
     }
     

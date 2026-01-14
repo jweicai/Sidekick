@@ -101,8 +101,11 @@ struct MultiTablePropertyTests {
                 let dataFrame = DataFrame(columns: columns, rows: rows)
                 let table = LoadedTable(
                     name: "table_\(i)",
+                    displayName: "table_\(i).csv",
                     dataFrame: dataFrame,
-                    sourceURL: URL(fileURLWithPath: "/tmp/table_\(i).csv")
+                    sourceURL: URL(fileURLWithPath: "/tmp/table_\(i).csv"),
+                    isTruncated: false,
+                    originalRowCount: nil
                 )
                 viewModel.loadedTables.append(table)
             }
@@ -188,8 +191,11 @@ struct MultiTablePropertyTests {
             let dataFrame = DataFrame(columns: columns, rows: rows)
             let table = LoadedTable(
                 name: "table_\(i)",
+                displayName: "table_\(i).csv",
                 dataFrame: dataFrame,
-                sourceURL: URL(fileURLWithPath: "/tmp/table_\(i).csv")
+                sourceURL: URL(fileURLWithPath: "/tmp/table_\(i).csv"),
+                isTruncated: false,
+                originalRowCount: nil
             )
             viewModel.loadedTables.append(table)
         }
@@ -211,8 +217,11 @@ struct MultiTablePropertyTests {
             let dataFrame = DataFrame(columns: columns, rows: rows)
             let table = LoadedTable(
                 name: "table_\(i)",
+                displayName: "table_\(i).csv",
                 dataFrame: dataFrame,
-                sourceURL: URL(fileURLWithPath: "/tmp/table_\(i).csv")
+                sourceURL: URL(fileURLWithPath: "/tmp/table_\(i).csv"),
+                isTruncated: false,
+                originalRowCount: nil
             )
             viewModel.loadedTables.append(table)
             tableIds.append(table.id)
@@ -236,8 +245,11 @@ struct MultiTablePropertyTests {
             let dataFrame = DataFrame(columns: columns, rows: rows)
             let table = LoadedTable(
                 name: "table_\(i)",
+                displayName: "table_\(i).csv",
                 dataFrame: dataFrame,
-                sourceURL: URL(fileURLWithPath: "/tmp/table_\(i).csv")
+                sourceURL: URL(fileURLWithPath: "/tmp/table_\(i).csv"),
+                isTruncated: false,
+                originalRowCount: nil
             )
             viewModel.loadedTables.append(table)
             tableIds.append(table.id)
@@ -262,8 +274,11 @@ struct MultiTablePropertyTests {
             let dataFrame = DataFrame(columns: columns, rows: rows)
             let table = LoadedTable(
                 name: "table_\(i)",
+                displayName: "table_\(i).csv",
                 dataFrame: dataFrame,
-                sourceURL: URL(fileURLWithPath: "/tmp/table_\(i).csv")
+                sourceURL: URL(fileURLWithPath: "/tmp/table_\(i).csv"),
+                isTruncated: false,
+                originalRowCount: nil
             )
             viewModel.loadedTables.append(table)
         }

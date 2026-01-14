@@ -39,8 +39,11 @@ struct IntegrationTests {
         let dataFrame = DataFrame(columns: columns, rows: rows)
         let table = LoadedTable(
             name: "users",
+            displayName: "users.csv",
             dataFrame: dataFrame,
-            sourceURL: URL(fileURLWithPath: "/tmp/users.csv")
+            sourceURL: URL(fileURLWithPath: "/tmp/users.csv"),
+            isTruncated: false,
+            originalRowCount: nil
         )
         viewModel.loadedTables.append(table)
         
@@ -106,8 +109,11 @@ struct IntegrationTests {
             let dataFrame = DataFrame(columns: columns, rows: rows)
             let table = LoadedTable(
                 name: "table_\(i)",
+                displayName: "table_\(i).csv",
                 dataFrame: dataFrame,
-                sourceURL: URL(fileURLWithPath: "/tmp/table_\(i).csv")
+                sourceURL: URL(fileURLWithPath: "/tmp/table_\(i).csv"),
+                isTruncated: false,
+                originalRowCount: nil
             )
             mainViewModel.loadedTables.append(table)
             queryViewModel.loadTable(name: table.name, dataFrame: dataFrame)
@@ -242,8 +248,11 @@ struct IntegrationTests {
         let dataFrame = DataFrame(columns: columns, rows: rows)
         let table = LoadedTable(
             name: "test",
+            displayName: "test.csv",
             dataFrame: dataFrame,
-            sourceURL: URL(fileURLWithPath: "/tmp/test.csv")
+            sourceURL: URL(fileURLWithPath: "/tmp/test.csv"),
+            isTruncated: false,
+            originalRowCount: nil
         )
         mainViewModel.loadedTables.append(table)
         queryViewModel.loadTable(name: "test", dataFrame: dataFrame)
