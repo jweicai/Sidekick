@@ -15,12 +15,16 @@ let package = Package(
         )
     ],
     dependencies: [
-        .package(url: "https://github.com/CoreOffice/CoreXLSX.git", from: "0.14.0")
+        .package(url: "https://github.com/CoreOffice/CoreXLSX.git", from: "0.14.0"),
+        .package(url: "https://github.com/duckdb/duckdb-swift.git", from: "1.0.0")
     ],
     targets: [
         .executableTarget(
             name: "Sidekick",
-            dependencies: ["CoreXLSX"],
+            dependencies: [
+                "CoreXLSX",
+                .product(name: "DuckDB", package: "duckdb-swift")
+            ],
             path: "Sources",
             swiftSettings: [
                 .unsafeFlags(["-parse-as-library"])

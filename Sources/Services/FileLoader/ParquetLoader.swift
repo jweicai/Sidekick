@@ -7,198 +7,195 @@
 
 import Foundation
 import UniformTypeIdentifiers
+import DuckDB
 
 /// Parquet 文件加载器
-/// 使用 Python pyarrow 库读取 Parquet 文件
+/// 使用 DuckDB 原生支持读取 Parquet 文件
 class ParquetLoader: FileLoaderProtocol {
     
     // MARK: - FileLoaderProtocol
     
-    var name: String { "Parquet Loader" }
+    var name: String { "Parquet Loader (DuckDB)" }
     var version: String { "1.0.0" }
-    var supportedTypes: [UTType] { [] } // Parquet 没有标准的 UTType
+    var supportedTypes: [UTType] { [] }
     var supportedExtensions: [String] { ["parquet"] }
     
     // MARK: - Public Methods
     
     func load(from url: URL) throws -> DataFrame {
-        // 检查 Python 和 pyarrow 是否可用
-        guard isPythonAvailable() else {
-            throw ParquetLoaderError.pythonNotFound
+        do {
+            // 创建临时内存数据库
+            let database = try Database(store: .inMemory)
+            let connection = try database.connect()
+            
+            // 使用 DuckDB 读取 Parquet 文件
+            // DuckDB 原生支持 Parquet 格式，无需外部依赖
+            let tableName = "parquet_data"
+            let query = """
+            CREATE TABLE \(tableName) AS
+            SELECT * FROM read_parquet('\(url.path)');
+            """
+            
+            try connection.execute(query)
+            
+            // 查询所有数据
+            let result = try connection.query("SELECT * FROM \(tableName)")
+            
+            // 转换为 DataFrame
+            return try convertToDataFrame(result: result)
+            
+        } catch {
+            throw ParquetLoaderError.readFailed(error.localizedDescription)
         }
-        
-        guard isPyArrowAvailable() else {
-            throw ParquetLoaderError.pyarrowNotInstalled
-        }
-        
-        // 使用 Python 脚本读取 Parquet 文件并转换为 CSV
-        let csvContent = try readParquetToCSV(url: url)
-        
-        // 使用 CSVLoader 解析 CSV 数据
-        let csvLoader = CSVLoader()
-        
-        // 创建临时文件来保存 CSV 数据
-        let tempDir = FileManager.default.temporaryDirectory
-        let tempURL = tempDir.appendingPathComponent("temp_\(UUID().uuidString).csv")
-        
-        try csvContent.write(to: tempURL, atomically: true, encoding: .utf8)
-        
-        defer {
-            try? FileManager.default.removeItem(at: tempURL)
-        }
-        
-        return try csvLoader.load(from: tempURL)
     }
     
     // MARK: - Private Methods
     
-    /// 检查 Python 是否可用
-    private func isPythonAvailable() -> Bool {
-        let task = Process()
-        task.launchPath = "/usr/bin/which"
-        task.arguments = ["python3"]
+    /// 将 DuckDB 结果转换为 DataFrame
+    private func convertToDataFrame(result: DuckDB.ResultSet) throws -> DataFrame {
+        guard result.columnCount > 0 else {
+            throw ParquetLoaderError.emptyFile
+        }
         
-        let pipe = Pipe()
-        task.standardOutput = pipe
+        // 获取列信息
+        var columns: [Column] = []
+        for columnIndex in 0..<result.columnCount {
+            let columnName = result.columns[columnIndex].name
+            let columnType = inferColumnType(from: result, columnIndex: columnIndex)
+            columns.append(Column(name: columnName, type: columnType))
+        }
         
-        do {
-            try task.run()
-            task.waitUntilExit()
-            return task.terminationStatus == 0
-        } catch {
-            return false
+        // 获取行数据
+        var rows: [[String]] = []
+        for rowIndex in 0..<result.rowCount {
+            var row: [String] = []
+            for columnIndex in 0..<result.columnCount {
+                let value = result[rowIndex][columnIndex]
+                row.append(stringValue(from: value))
+            }
+            rows.append(row)
+        }
+        
+        return DataFrame(columns: columns, rows: rows)
+    }
+    
+    /// 推断列类型
+    private func inferColumnType(from result: DuckDB.ResultSet, columnIndex: Int) -> ColumnType {
+        // 检查前几行数据来推断类型
+        let sampleSize = min(10, result.rowCount)
+        var hasInteger = false
+        var hasDecimal = false
+        var hasDate = false
+        
+        for rowIndex in 0..<sampleSize {
+            let value = result[rowIndex][columnIndex]
+            let stringValue = self.stringValue(from: value)
+            
+            if stringValue.isEmpty { continue }
+            
+            // 检查是否为整数
+            if Int(stringValue) != nil {
+                hasInteger = true
+            }
+            // 检查是否为小数
+            else if Double(stringValue) != nil {
+                hasDecimal = true
+            }
+            // 检查是否为日期
+            else if isDateString(stringValue) {
+                hasDate = true
+            }
+        }
+        
+        if hasDate { return .date }
+        if hasDecimal { return .decimal }
+        if hasInteger { return .integer }
+        return .text
+    }
+    
+    /// 将 DuckDB 值转换为字符串
+    private func stringValue(from value: DatabaseValue) -> String {
+        switch value {
+        case .null:
+            return ""
+        case .boolean(let bool):
+            return bool ? "true" : "false"
+        case .tinyInt(let int):
+            return String(int)
+        case .smallInt(let int):
+            return String(int)
+        case .integer(let int):
+            return String(int)
+        case .bigInt(let int):
+            return String(int)
+        case .hugeInt(let int):
+            return String(int)
+        case .uTinyInt(let uint):
+            return String(uint)
+        case .uSmallInt(let uint):
+            return String(uint)
+        case .uInteger(let uint):
+            return String(uint)
+        case .uBigInt(let uint):
+            return String(uint)
+        case .float(let float):
+            return String(float)
+        case .double(let double):
+            return String(double)
+        case .decimal(let decimal):
+            return decimal.description
+        case .varchar(let string):
+            return string
+        case .blob(let data):
+            return data.base64EncodedString()
+        case .date(let date):
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            return formatter.string(from: date)
+        case .time(let time):
+            return time.description
+        case .timestamp(let timestamp):
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+            return formatter.string(from: timestamp)
+        case .interval(let interval):
+            return interval.description
+        case .uuid(let uuid):
+            return uuid.uuidString
+        case .list(let array):
+            return array.map { stringValue(from: $0) }.joined(separator: ", ")
+        case .struct(let dict):
+            return dict.map { "\($0.key): \(stringValue(from: $0.value))" }.joined(separator: ", ")
         }
     }
     
-    /// 检查 pyarrow 是否已安装
-    private func isPyArrowAvailable() -> Bool {
-        let task = Process()
-        task.launchPath = "/usr/bin/python3"
-        task.arguments = ["-c", "import pyarrow"]
+    /// 检查字符串是否为日期格式
+    private func isDateString(_ string: String) -> Bool {
+        let datePatterns = [
+            "^\\d{4}-\\d{1,2}-\\d{1,2}",
+            "^\\d{4}/\\d{1,2}/\\d{1,2}",
+            "^\\d{4}年\\d{1,2}月\\d{1,2}日"
+        ]
         
-        let pipe = Pipe()
-        task.standardError = pipe
-        
-        do {
-            try task.run()
-            task.waitUntilExit()
-            return task.terminationStatus == 0
-        } catch {
-            return false
-        }
-    }
-    
-    /// 使用 Python pyarrow 读取 Parquet 文件并转换为 CSV
-    private func readParquetToCSV(url: URL) throws -> String {
-        let pythonScript = """
-        import sys
-        import pyarrow.parquet as pq
-        import pyarrow.csv as csv
-        import io
-        
-        try:
-            # 读取 Parquet 文件
-            table = pq.read_table('\(url.path)')
-            
-            # 转换为 CSV
-            output = io.BytesIO()
-            csv.write_csv(table, output)
-            
-            # 输出 CSV 数据
-            sys.stdout.buffer.write(output.getvalue())
-            sys.exit(0)
-        except Exception as e:
-            sys.stderr.write(f"Error: {str(e)}\\n")
-            sys.exit(1)
-        """
-        
-        // 创建临时 Python 脚本文件
-        let tempDir = FileManager.default.temporaryDirectory
-        let scriptURL = tempDir.appendingPathComponent("read_parquet_\(UUID().uuidString).py")
-        
-        try pythonScript.write(to: scriptURL, atomically: true, encoding: .utf8)
-        
-        defer {
-            try? FileManager.default.removeItem(at: scriptURL)
-        }
-        
-        // 执行 Python 脚本
-        let task = Process()
-        task.launchPath = "/usr/bin/python3"
-        task.arguments = [scriptURL.path]
-        
-        let outputPipe = Pipe()
-        let errorPipe = Pipe()
-        task.standardOutput = outputPipe
-        task.standardError = errorPipe
-        
-        do {
-            try task.run()
-            task.waitUntilExit()
-            
-            if task.terminationStatus != 0 {
-                let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-                let errorMessage = String(data: errorData, encoding: .utf8) ?? "Unknown error"
-                throw ParquetLoaderError.readFailed(errorMessage)
+        for pattern in datePatterns {
+            if string.range(of: pattern, options: .regularExpression) != nil {
+                return true
             }
-            
-            let csvData = outputPipe.fileHandleForReading.readDataToEndOfFile()
-            
-            guard !csvData.isEmpty else {
-                throw ParquetLoaderError.emptyFile
-            }
-            
-            guard let csvString = String(data: csvData, encoding: .utf8) else {
-                throw ParquetLoaderError.readFailed("无法解码 CSV 数据")
-            }
-            
-            return csvString
-        } catch let error as ParquetLoaderError {
-            throw error
-        } catch {
-            throw ParquetLoaderError.readFailed(error.localizedDescription)
         }
+        return false
     }
 }
 
 // MARK: - Parquet Loader Errors
 
 enum ParquetLoaderError: Error, LocalizedError {
-    case pythonNotFound
-    case pyarrowNotInstalled
     case readFailed(String)
     case emptyFile
     
     var errorDescription: String? {
         switch self {
-        case .pythonNotFound:
-            return """
-            未找到 Python 3
-            
-            Parquet 文件需要 Python 3 支持。请安装 Python 3：
-            
-            方法 1 - 使用 Homebrew：
-            brew install python3
-            
-            方法 2 - 从官网下载：
-            https://www.python.org/downloads/
-            """
-            
-        case .pyarrowNotInstalled:
-            return """
-            未安装 PyArrow 库
-            
-            Parquet 文件需要 PyArrow 库支持。请安装：
-            
-            pip3 install pyarrow
-            
-            或者：
-            python3 -m pip install pyarrow
-            """
-            
         case .readFailed(let message):
             return "读取 Parquet 文件失败：\(message)"
-            
         case .emptyFile:
             return "Parquet 文件为空或无法读取数据"
         }
