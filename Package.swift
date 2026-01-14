@@ -4,14 +4,14 @@
 import PackageDescription
 
 let package = Package(
-    name: "TableQuery",
+    name: "Sidekick",
     platforms: [
         .macOS(.v14)
     ],
     products: [
         .executable(
-            name: "TableQuery",
-            targets: ["TableQuery"]
+            name: "Sidekick",
+            targets: ["Sidekick"]
         )
     ],
     dependencies: [
@@ -19,7 +19,7 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "TableQuery",
+            name: "Sidekick",
             dependencies: ["CoreXLSX"],
             path: "Sources",
             swiftSettings: [
@@ -27,8 +27,8 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "TableQueryTests",
-            dependencies: ["TableQuery"],
+            name: "SidekickTests",
+            dependencies: ["Sidekick"],
             path: "Tests"
         )
     ]

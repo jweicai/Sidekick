@@ -532,12 +532,12 @@ struct DataFormatSidebar: View {
                         )
                         .frame(width: 32, height: 32)
                     
-                    Image(systemName: "tablecells")
+                    Image(systemName: "person.badge.shield.checkmark")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(.white)
                 }
                 
-                Text("TQ")
+                Text("SK")
                     .font(.system(size: 9, weight: .bold))
                     .foregroundColor(DesignSystem.Colors.navText)
             }

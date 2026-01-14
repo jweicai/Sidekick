@@ -1,17 +1,61 @@
-# TableQuery MVP
+# Sidekick
 
-一个用于查询数据文件的 Mac 应用程序，支持 CSV、JSON 和 XLSX 格式，提供 SQL 查询功能。
+你的开发助手 - 集数据查询、格式转换、开发工具于一体的 macOS 应用
 
-## 功能特性
+## 简介
 
-- 📁 **文件加载**: 支持 CSV、JSON/JSONL 和 XLSX 格式
-- 🔍 **智能类型推断**: 自动识别 INTEGER、REAL、TEXT、BOOLEAN 类型
-- 🗃️ **多表管理**: 同时加载多个数据文件，支持 JOIN 查询
-- 💾 **SQL 查询**: 基于 SQLite 内存数据库，支持完整 SQL 语法
-- 💿 **数据持久化**: 自动保存已加载的表，重启后自动恢复
-- 📤 **数据导出**: 导出为 CSV、JSON 或 INSERT 语句
-- ⌨️ **键盘快捷键**: ⌘+Enter 执行查询，⌘+N 添加文件
-- 🌏 **中文界面**: 完整的中文用户界面和错误提示
+Sidekick 是一款为 macOS 开发者打造的多功能工具箱，集成了数据查询、格式转换、编码工具等常用功能。无论是 SQL 查询、JSON 处理、时间戳转换还是 IP 地址计算，Sidekick 都能帮你快速完成。
+
+## 核心功能
+
+### 📊 数据查询
+- **文件加载**: 支持 CSV、JSON/JSONL 和 XLSX 格式
+- **智能类型推断**: 自动识别 INTEGER、REAL、TEXT、BOOLEAN 类型
+- **多表管理**: 同时加载多个数据文件，支持 JOIN 查询
+- **SQL 查询**: 基于 SQLite 内存数据库，支持完整 SQL 语法
+- **数据持久化**: 自动保存已加载的表，重启后自动恢复
+- **数据导出**: 导出为 CSV、JSON 或 INSERT 语句
+
+### 🛠️ 开发工具
+
+#### JSON 工具
+- **扁平化**: 列式 JSON → 行式 JSON
+- **格式化**: 美化 JSON 格式
+- **压缩**: 移除空格和换行
+- **验证**: 检查 JSON 格式
+- **路径查询**: JSONPath 查询
+
+#### IP 工具
+- **格式转换**: IP ↔ 整数 ↔ 十六进制
+- **子网计算**: CIDR 子网信息
+- **地址验证**: 验证 IP 格式
+- **批量处理**: 批量转换 IP 列表
+
+#### 时间戳工具
+- **实时显示**: 当前时间戳（秒/毫秒/微秒）
+- **时间戳转日期**: 支持多种单位和时区
+- **日期转时间戳**: 支持多种日期格式
+- **单位切换**: 秒/毫秒/微秒自由切换
+- **时区支持**: Asia/Shanghai, UTC, America/New_York
+
+#### 文本工具
+- **Base64**: 编码/解码
+- **URL 编码**: URL 编码/解码
+- **Hash**: MD5/SHA 计算
+- **文本对比**: 对比两段文本差异
+
+#### 其他工具
+- **UUID**: 生成 UUID
+- **颜色转换**: HEX ↔ RGB
+- **正则测试**: 正则表达式测试
+
+### ⌨️ 快捷键
+- **⌘+Enter**: 执行 SQL 查询
+- **⌘+N**: 添加新文件
+- **⌘+W**: 清除所有数据
+
+### 🌏 中文界面
+完整的中文用户界面和错误提示
 
 ## 快速开始
 
@@ -20,7 +64,7 @@
 ```bash
 # 克隆项目
 git clone <repository-url>
-cd TableQuery
+cd Sidekick
 
 # 构建项目
 swift build
@@ -39,7 +83,7 @@ open Package.swift
 
 # 在 Xcode 中：
 # 1. 等待项目加载完成
-# 2. 选择 "TableQuery" scheme
+# 2. 选择 "Sidekick" scheme
 # 3. 点击运行按钮 (▶️) 或按 ⌘+R
 ```
 
@@ -197,8 +241,8 @@ ORDER BY 总金额 DESC;
 **解决方案**: 使用 `@NSApplicationDelegateAdaptor` 添加 AppDelegate，并设置 `NSApp.setActivationPolicy(.regular)`。
 
 详细的排查过程和解决方案请参考：
-- [SwiftUI键盘输入问题解决方案](docs/SwiftUI键盘输入问题解决方案.md)
-- [SwiftUI键盘输入问题排查记录](docs/SwiftUI键盘输入问题排查记录.md)
+- [SwiftUI键盘输入问题解决方案](docs/项目难点记录/SwiftUI键盘输入问题解决方案.md)
+- [SwiftUI键盘输入问题排查记录](docs/项目难点记录/SwiftUI键盘输入问题排查记录.md)
 
 ## 系统要求
 
@@ -216,7 +260,7 @@ MIT License
 
 ---
 
-**享受数据查询的乐趣！** 🚀
+**Sidekick - Your Coding Companion** 🚀
 
 ## 故障排除
 
@@ -254,7 +298,7 @@ MIT License
 
 如果运行 `swift run` 后没有看到应用窗口：
 
-1. **检查 Dock**: 查看 Dock 中是否有 TableQuery 图标，点击激活
+1. **检查 Dock**: 查看 Dock 中是否有 Sidekick 图标，点击激活
 2. **使用 Xcode**: 推荐使用 Xcode 运行应用
    ```bash
    open Package.swift
@@ -262,7 +306,7 @@ MIT License
    ```
 3. **检查进程**: 确认应用是否在运行
    ```bash
-   ps aux | grep TableQuery
+   ps aux | grep Sidekick
    ```
 4. **重新构建**: 清理并重新构建
    ```bash

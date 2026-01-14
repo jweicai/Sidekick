@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# TableQuery 启动脚本
+# Sidekick 启动脚本
 # 推荐使用 Xcode 运行以获得最佳体验
 
-echo "🚀 TableQuery 启动助手"
+echo "🚀 Sidekick 启动助手"
 echo ""
 echo "选择启动方式:"
 echo "  1) 在 Xcode 中打开 (推荐)"
@@ -38,7 +38,7 @@ case $choice in
         sleep 2
         
         echo ""
-        echo "✅ TableQuery 已启动！"
+        echo "✅ Sidekick 已启动！"
         echo ""
         echo "⚠️  注意: 命令行启动可能会遇到键盘输入问题"
         echo "   如果 SQL 编辑器无法输入，请使用 Xcode 运行"
