@@ -1,4 +1,4 @@
-# Requirements Document
+# Sidekick MVP - Requirements Document
 
 ## Introduction
 

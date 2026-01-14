@@ -1,4 +1,4 @@
-# Design Document: Sidekick MVP
+# Sidekick MVP - Design Document
 
 ## Overview
 

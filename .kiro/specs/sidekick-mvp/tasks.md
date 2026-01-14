@@ -1,4 +1,4 @@
-# Implementation Plan: Sidekick MVP
+# Sidekick MVP - Implementation Plan
 
 ## Overview
 
