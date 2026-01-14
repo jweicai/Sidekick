@@ -170,16 +170,14 @@ enum DataFormatType: String, CaseIterable {
             ]
         case .timestamp:
             return [
-                ProcessingMethod(id: "toDate", name: "转日期", icon: "calendar", description: "时间戳 → 日期时间"),
-                ProcessingMethod(id: "toTimestamp", name: "转时间戳", icon: "clock", description: "日期时间 → 时间戳"),
-                ProcessingMethod(id: "current", name: "当前时间", icon: "clock.badge.checkmark", description: "获取当前时间戳"),
-                ProcessingMethod(id: "calculate", name: "时间计算", icon: "plus.forwardslash.minus", description: "时间差和加减")
+                ProcessingMethod(id: "convert", name: "时间戳处理", icon: "clock", description: "时间戳与日期互转")
             ]
         case .text:
             return [
                 ProcessingMethod(id: "base64", name: "Base64", icon: "textformat.abc", description: "编码/解码"),
                 ProcessingMethod(id: "url", name: "URL 编码", icon: "link", description: "URL 编码/解码"),
-                ProcessingMethod(id: "hash", name: "Hash", icon: "number", description: "MD5/SHA 计算")
+                ProcessingMethod(id: "hash", name: "Hash", icon: "number", description: "MD5/SHA 计算"),
+                ProcessingMethod(id: "diff", name: "文本对比", icon: "arrow.left.arrow.right", description: "对比两段文本差异")
             ]
         case .other:
             return [
@@ -317,10 +315,61 @@ struct ProcessingContentView: View {
         Group {
             if licenseManager.canUseTool(toolId) {
                 // 有权限，显示功能界面
-                if format == .json && method.id == "flatten" {
-                    JSONFlattenerView()
-                } else {
-                    // 其他处理方式暂未实现
+                switch format {
+                case .json:
+                    switch method.id {
+                    case "flatten":
+                        JSONFlattenerView()
+                    case "format":
+                        JSONFormatterView()
+                    case "compress":
+                        JSONCompressorView()
+                    case "validate":
+                        JSONValidatorView()
+                    case "path":
+                        JSONPathQueryView()
+                    default:
+                        ComingSoonView(format: format, method: method)
+                    }
+                    
+                case .timestamp:
+                    switch method.id {
+                    case "convert":
+                        TimestampConverterView()
+                    default:
+                        ComingSoonView(format: format, method: method)
+                    }
+                    
+                case .ip:
+                    switch method.id {
+                    case "convert":
+                        IPConverterView()
+                    case "subnet":
+                        SubnetCalculatorView()
+                    case "validate":
+                        IPValidatorView()
+                    case "batch":
+                        IPBatchProcessorView()
+                    default:
+                        ComingSoonView(format: format, method: method)
+                    }
+                    
+                case .text:
+                    switch method.id {
+                    case "base64":
+                        Base64ToolView()
+                    case "url":
+                        URLEncodeToolView()
+                    case "hash":
+                        HashToolView()
+                    case "diff":
+                        TextDiffView()
+                    default:
+                        ComingSoonView(format: format, method: method)
+                    }
+                    
+                default:
+                    // 其他格式暂未实现
                     ComingSoonView(format: format, method: method)
                 }
             } else {
@@ -632,260 +681,6 @@ struct ErrorView: View {
 
 #Preview {
     MainView()
-}
-
-// MARK: - JSON 扁平化视图
-
-struct JSONFlattenerView: View {
-    @State private var inputJSON: String = ""
-    @State private var outputJSON: String = ""
-    @State private var errorMessage: String?
-    @State private var isProcessing = false
-    
-    var body: some View {
-        VStack(spacing: 0) {
-            // 标题栏
-            HStack {
-                Image(systemName: "curlybraces.square")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(DesignSystem.Colors.accent)
-                
-                Text("JSON 扁平化")
-                    .font(DesignSystem.Typography.bodyMedium)
-                    .foregroundColor(DesignSystem.Colors.textPrimary)
-                
-                Spacer()
-            }
-            .padding(.horizontal, DesignSystem.Spacing.md)
-            .padding(.vertical, DesignSystem.Spacing.sm)
-            .background(DesignSystem.Colors.background)
-            
-            Divider()
-            
-            // 说明文本
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                Text("将列式 JSON 转换为扁平 JSON")
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.textSecondary)
-                
-                Text("示例：{\"name\":[\"A\",\"B\"]} → [{\"name\":\"A\"},{\"name\":\"B\"}]")
-                    .font(.system(size: 10, design: .monospaced))
-                    .foregroundColor(DesignSystem.Colors.textMuted)
-            }
-            .padding(.horizontal, DesignSystem.Spacing.md)
-            .padding(.vertical, DesignSystem.Spacing.sm)
-            .background(DesignSystem.Colors.sidebarHover)
-            
-            Divider()
-            
-            // 操作按钮
-            VStack(spacing: DesignSystem.Spacing.sm) {
-                // 粘贴按钮
-                Button(action: pasteFromClipboard) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "doc.on.clipboard")
-                            .font(.system(size: 11))
-                        Text("粘贴 JSON")
-                            .font(DesignSystem.Typography.caption)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .background(DesignSystem.Colors.accent.opacity(0.1))
-                    .foregroundColor(DesignSystem.Colors.accent)
-                    .cornerRadius(DesignSystem.CornerRadius.small)
-                }
-                .buttonStyle(.plain)
-                
-                // 转换按钮
-                Button(action: flattenJSON) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.triangle.2.circlepath")
-                            .font(.system(size: 11))
-                        Text(isProcessing ? "转换中..." : "转换")
-                            .font(DesignSystem.Typography.caption)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .background(DesignSystem.Colors.accent)
-                    .foregroundColor(.white)
-                    .cornerRadius(DesignSystem.CornerRadius.small)
-                }
-                .buttonStyle(.plain)
-                .disabled(inputJSON.isEmpty || isProcessing)
-                
-                // 复制结果按钮
-                Button(action: copyToClipboard) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "doc.on.doc")
-                            .font(.system(size: 11))
-                        Text("复制结果")
-                            .font(DesignSystem.Typography.caption)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .background(DesignSystem.Colors.success.opacity(0.1))
-                    .foregroundColor(DesignSystem.Colors.success)
-                    .cornerRadius(DesignSystem.CornerRadius.small)
-                }
-                .buttonStyle(.plain)
-                .disabled(outputJSON.isEmpty)
-                
-                // 清空按钮
-                Button(action: clearAll) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "trash")
-                            .font(.system(size: 11))
-                        Text("清空")
-                            .font(DesignSystem.Typography.caption)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .background(DesignSystem.Colors.error.opacity(0.1))
-                    .foregroundColor(DesignSystem.Colors.error)
-                    .cornerRadius(DesignSystem.CornerRadius.small)
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.horizontal, DesignSystem.Spacing.md)
-            .padding(.vertical, DesignSystem.Spacing.md)
-            
-            // 错误信息
-            if let error = errorMessage {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 10))
-                        Text("错误")
-                            .font(DesignSystem.Typography.caption)
-                            .fontWeight(.medium)
-                    }
-                    .foregroundColor(DesignSystem.Colors.error)
-                    
-                    Text(error)
-                        .font(.system(size: 10))
-                        .foregroundColor(DesignSystem.Colors.textSecondary)
-                }
-                .padding(DesignSystem.Spacing.sm)
-                .background(DesignSystem.Colors.error.opacity(0.1))
-                .cornerRadius(DesignSystem.CornerRadius.small)
-                .padding(.horizontal, DesignSystem.Spacing.md)
-            }
-            
-            Spacer()
-        }
-        .background(DesignSystem.Colors.background)
-    }
-    
-    // MARK: - Actions
-    
-    private func pasteFromClipboard() {
-        let pasteboard = NSPasteboard.general
-        if let string = pasteboard.string(forType: .string) {
-            inputJSON = string
-            errorMessage = nil
-        }
-    }
-    
-    private func flattenJSON() {
-        isProcessing = true
-        errorMessage = nil
-        outputJSON = ""
-        
-        DispatchQueue.global(qos: .userInitiated).async {
-            do {
-                let flattened = try JSONFlattener.flatten(inputJSON)
-                DispatchQueue.main.async {
-                    outputJSON = flattened
-                    isProcessing = false
-                }
-            } catch {
-                DispatchQueue.main.async {
-                    errorMessage = error.localizedDescription
-                    isProcessing = false
-                }
-            }
-        }
-    }
-    
-    private func copyToClipboard() {
-        let pasteboard = NSPasteboard.general
-        pasteboard.clearContents()
-        pasteboard.setString(outputJSON, forType: .string)
-    }
-    
-    private func clearAll() {
-        inputJSON = ""
-        outputJSON = ""
-        errorMessage = nil
-    }
-}
-
-// MARK: - JSON 扁平化工具
-
-struct JSONFlattener {
-    static func flatten(_ jsonString: String) throws -> String {
-        guard let data = jsonString.data(using: .utf8) else {
-            throw JSONFlattenerError.invalidInput
-        }
-        
-        let jsonObject = try JSONSerialization.jsonObject(with: data)
-        
-        guard let dict = jsonObject as? [String: Any] else {
-            throw JSONFlattenerError.notColumnFormat
-        }
-        
-        // 检查是否是列式格式
-        var arrays: [[Any]] = []
-        var keys: [String] = []
-        var maxLength = 0
-        
-        for (key, value) in dict {
-            guard let array = value as? [Any] else {
-                throw JSONFlattenerError.notColumnFormat
-            }
-            keys.append(key)
-            arrays.append(array)
-            maxLength = max(maxLength, array.count)
-        }
-        
-        // 转换为行式格式
-        var result: [[String: Any]] = []
-        for i in 0..<maxLength {
-            var row: [String: Any] = [:]
-            for (index, key) in keys.enumerated() {
-                if i < arrays[index].count {
-                    row[key] = arrays[index][i]
-                } else {
-                    row[key] = NSNull()
-                }
-            }
-            result.append(row)
-        }
-        
-        let outputData = try JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys])
-        guard let outputString = String(data: outputData, encoding: .utf8) else {
-            throw JSONFlattenerError.conversionFailed
-        }
-        
-        return outputString
-    }
-}
-
-enum JSONFlattenerError: Error, LocalizedError {
-    case invalidInput
-    case notColumnFormat
-    case conversionFailed
-    
-    var errorDescription: String? {
-        switch self {
-        case .invalidInput:
-            return "无效的 JSON 输入"
-        case .notColumnFormat:
-            return "输入不是列式 JSON 格式"
-        case .conversionFailed:
-            return "转换失败"
-        }
-    }
 }
 
 // MARK: - 设置视图

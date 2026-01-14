@@ -84,30 +84,31 @@ struct QueryEditorView: View {
                         .frame(height: editorHeight)
                 }
                 
-                // 可拖动的分隔条
-                DraggableDivider(isDragging: $isDragging)
-                    .gesture(
-                        DragGesture()
-                            .onChanged { value in
-                                isDragging = true
-                                let newHeight = editorHeight + value.translation.height
-                                // 限制编辑器高度在 100 到 geometry.size.height - 200 之间
-                                editorHeight = min(max(newHeight, 100), geometry.size.height - 200)
-                            }
-                            .onEnded { _ in
-                                isDragging = false
-                            }
-                    )
-                
-                // 结果区域
-                if viewModel.isExecuting {
-                    LoadingResultsView()
-                } else if let errorMessage = viewModel.errorMessage {
-                    ErrorResultView(message: errorMessage)
-                } else if let result = viewModel.queryResult {
-                    QueryResultView(result: result, viewModel: viewModel)
-                } else {
-                    EmptyResultView()
+                // 只在有结果、错误或正在执行时显示分隔条和结果区域
+                if viewModel.isExecuting || viewModel.errorMessage != nil || viewModel.queryResult != nil {
+                    // 可拖动的分隔条
+                    DraggableDivider(isDragging: $isDragging)
+                        .gesture(
+                            DragGesture()
+                                .onChanged { value in
+                                    isDragging = true
+                                    let newHeight = editorHeight + value.translation.height
+                                    // 限制编辑器高度在 100 到 geometry.size.height - 200 之间
+                                    editorHeight = min(max(newHeight, 100), geometry.size.height - 200)
+                                }
+                                .onEnded { _ in
+                                    isDragging = false
+                                }
+                        )
+                    
+                    // 结果区域
+                    if viewModel.isExecuting {
+                        LoadingResultsView()
+                    } else if let errorMessage = viewModel.errorMessage {
+                        ErrorResultView(message: errorMessage)
+                    } else if let result = viewModel.queryResult {
+                        QueryResultView(result: result, viewModel: viewModel)
+                    }
                 }
             }
             .background(DesignSystem.Colors.background)
