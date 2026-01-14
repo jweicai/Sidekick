@@ -2,257 +2,207 @@
 //  LicenseManager.swift
 //  Sidekick
 //
-//  Created on 2025-01-13.
+//  Created on 2025-01-14.
 //
 
 import Foundation
-
-/// 许可证类型
-enum LicenseType: String, Codable {
-    case free = "免费版"
-    case pro = "专业版"
-    case enterprise = "企业版"
-}
-
-/// 许可证信息
-struct License: Codable {
-    let type: LicenseType
-    let expiryDate: Date?
-    let features: [String: Bool]
-    
-    var isExpired: Bool {
-        guard let expiry = expiryDate else { return false }
-        return Date() > expiry
-    }
-}
-
-/// 功能限制配置
-struct FeatureLimits {
-    let maxRowsPerTable: Int
-    let maxTables: Int
-    let maxExportSize: Int
-    let allowedFormats: [String]
-    let allowedTools: [String]
-}
+import Combine
 
 /// 许可证管理器
-class LicenseManager {
+class LicenseManager: ObservableObject {
+    
+    // MARK: - Published Properties
+    
+    @Published var isActivated: Bool = false
+    @Published var trialDaysRemaining: Int = 90
+    @Published var licenseEmail: String = ""
+    
+    // MARK: - Constants
+    
+    private let trialDays = 90
+    private let licenseKey = "Sidekick.License"
+    private let trialStartKey = "Sidekick.TrialStart"
+    
+    // MARK: - Singleton
+    
     static let shared = LicenseManager()
     
-    private let licenseKey = "Sidekick.License"
-    private var currentLicense: License?
-    
     private init() {
-        loadLicense()
+        checkLicenseStatus()
     }
     
-    // MARK: - License Management
+    // MARK: - Public Methods
     
-    /// 获取当前许可证类型
-    var licenseType: LicenseType {
-        if let license = currentLicense, !license.isExpired {
-            return license.type
-        }
-        return .free
-    }
-    
-    /// 加载许可证
-    private func loadLicense() {
-        guard let data = UserDefaults.standard.data(forKey: licenseKey),
-              let license = try? JSONDecoder().decode(License.self, from: data) else {
-            // 默认免费版
-            currentLicense = createFreeLicense()
+    /// 检查许可证状态
+    func checkLicenseStatus() {
+        // 1. 检查是否已激活
+        if let license = loadLicense(), validateLicense(license) {
+            isActivated = true
+            licenseEmail = license.email
             return
         }
-        currentLicense = license
+        
+        // 2. 检查试用期
+        let trialStart = getTrialStartDate()
+        let daysPassed = Calendar.current.dateComponents([.day], from: trialStart, to: Date()).day ?? 0
+        trialDaysRemaining = max(0, trialDays - daysPassed)
+        isActivated = false
+    }
+    
+    /// 是否在试用期
+    var isInTrial: Bool {
+        return !isActivated && trialDaysRemaining > 0
+    }
+    
+    /// 试用期是否已过期
+    var isExpired: Bool {
+        return !isActivated && trialDaysRemaining <= 0
+    }
+    
+    /// 激活许可证
+    func activate(licenseKey: String, email: String) -> Result<Void, LicenseError> {
+        // 1. 验证格式
+        let cleanKey = licenseKey.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        
+        guard isValidLicenseFormat(cleanKey) else {
+            return .failure(.invalidFormat)
+        }
+        
+        guard isValidEmail(cleanEmail) else {
+            return .failure(.invalidEmail)
+        }
+        
+        // 2. 获取机器码
+        let machineID = MachineID.get()
+        
+        // 3. 验证激活码
+        guard validateActivationCode(cleanKey, email: cleanEmail, machineID: machineID) else {
+            return .failure(.invalidLicense)
+        }
+        
+        // 4. 保存许可证
+        let license = License(
+            key: cleanKey,
+            email: cleanEmail,
+            machineID: machineID,
+            activatedAt: Date()
+        )
+        
+        saveLicense(license)
+        
+        // 5. 更新状态
+        isActivated = true
+        licenseEmail = cleanEmail
+        
+        return .success(())
+    }
+    
+    /// 获取机器码（用于购买时提供）
+    func getMachineID() -> String {
+        return MachineID.get()
+    }
+    
+    // MARK: - Private Methods
+    
+    /// 获取试用开始日期
+    private func getTrialStartDate() -> Date {
+        if let trialStart = UserDefaults.standard.object(forKey: trialStartKey) as? Date {
+            return trialStart
+        }
+        
+        // 首次启动，记录试用开始时间
+        let now = Date()
+        UserDefaults.standard.set(now, forKey: trialStartKey)
+        return now
+    }
+    
+    /// 验证激活码格式
+    private func isValidLicenseFormat(_ key: String) -> Bool {
+        // 格式：XXXX-XXXX-XXXX-XXXX
+        let pattern = "^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$"
+        return key.range(of: pattern, options: .regularExpression) != nil
+    }
+    
+    /// 验证邮箱格式
+    private func isValidEmail(_ email: String) -> Bool {
+        let pattern = "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$"
+        return email.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
+    }
+    
+    /// 验证激活码（本地验证）
+    private func validateActivationCode(_ key: String, email: String, machineID: String) -> Bool {
+        // 简单的本地验证逻辑
+        // 实际使用时，你可以：
+        // 1. 使用服务器验证
+        // 2. 使用加密算法验证
+        // 3. 使用签名验证
+        
+        // 这里使用简单的哈希验证作为示例
+        let combined = "\(email)|\(machineID)|SIDEKICK_SECRET"
+        let hash = combined.sha256()
+        let expectedPrefix = String(hash.prefix(16)).uppercased()
+        let keyWithoutDashes = key.replacingOccurrences(of: "-", with: "")
+        
+        return keyWithoutDashes == expectedPrefix
+    }
+    
+    /// 验证许可证
+    private func validateLicense(_ license: License) -> Bool {
+        // 1. 检查机器码是否匹配
+        let currentMachineID = MachineID.get()
+        guard license.machineID == currentMachineID else {
+            return false
+        }
+        
+        // 2. 验证激活码
+        return validateActivationCode(license.key, email: license.email, machineID: license.machineID)
     }
     
     /// 保存许可证
     private func saveLicense(_ license: License) {
-        if let data = try? JSONEncoder().encode(license) {
-            UserDefaults.standard.set(data, forKey: licenseKey)
-            currentLicense = license
+        if let encoded = try? JSONEncoder().encode(license) {
+            UserDefaults.standard.set(encoded, forKey: licenseKey)
         }
     }
     
-    /// 创建免费版许可证
-    private func createFreeLicense() -> License {
-        License(
-            type: .free,
-            expiryDate: nil,
-            features: [
-                "unlimited_tables": false,
-                "unlimited_rows": false,
-                "export_all_formats": false,
-                "all_tools": false,
-                "advanced_query": false,
-                "batch_operations": false
-            ]
-        )
-    }
-    
-    /// 激活许可证
-    /// - Parameter key: 许可证密钥
-    /// - Returns: 是否激活成功
-    func activateLicense(key: String) -> (success: Bool, message: String) {
-        guard let license = LicenseKeyValidator.validateLicenseKey(key) else {
-            return (false, "无效的许可证密钥")
+    /// 加载许可证
+    private func loadLicense() -> License? {
+        guard let data = UserDefaults.standard.data(forKey: licenseKey),
+              let license = try? JSONDecoder().decode(License.self, from: data) else {
+            return nil
         }
-        
-        if license.isExpired {
-            return (false, "许可证已过期")
-        }
-        
-        saveLicense(license)
-        return (true, "许可证激活成功！")
+        return license
     }
+}
+
+// MARK: - Data Models
+
+/// 许可证
+struct License: Codable {
+    let key: String
+    let email: String
+    let machineID: String
+    let activatedAt: Date
+}
+
+/// 许可证错误
+enum LicenseError: LocalizedError {
+    case invalidFormat
+    case invalidEmail
+    case invalidLicense
+    case networkError
     
-    /// 停用许可证（恢复到免费版）
-    func deactivateLicense() {
-        let freeLicense = createFreeLicense()
-        saveLicense(freeLicense)
-    }
-    
-    /// 激活专业版（用于测试）
-    func activateProLicense(expiryDate: Date? = nil) {
-        let license = License(
-            type: .pro,
-            expiryDate: expiryDate,
-            features: [
-                "unlimited_tables": true,
-                "unlimited_rows": true,
-                "export_all_formats": true,
-                "all_tools": true,
-                "advanced_query": true,
-                "batch_operations": false
-            ]
-        )
-        saveLicense(license)
-    }
-    
-    /// 激活企业版（用于测试）
-    func activateEnterpriseLicense(expiryDate: Date? = nil) {
-        let license = License(
-            type: .enterprise,
-            expiryDate: expiryDate,
-            features: [
-                "unlimited_tables": true,
-                "unlimited_rows": true,
-                "export_all_formats": true,
-                "all_tools": true,
-                "advanced_query": true,
-                "batch_operations": true
-            ]
-        )
-        saveLicense(license)
-    }
-    
-    // MARK: - Feature Limits
-    
-    /// 获取当前版本的功能限制
-    /// 
-    /// ⚠️ 开发阶段配置：
-    /// 免费版暂时开放所有功能，便于测试和开发
-    /// 后续需要根据商业化策略调整各版本的功能限制
-    var limits: FeatureLimits {
-        switch licenseType {
-        case .free:
-            // 🔓 开发阶段：免费版暂时开放所有功能
-            // TODO: 后续根据商业化策略调整以下限制
-            return FeatureLimits(
-                maxRowsPerTable: Int.max,  // 暂时无限制 → 建议改为 1000
-                maxTables: Int.max,         // 暂时无限制 → 建议改为 3
-                maxExportSize: Int.max,     // 暂时无限制 → 建议改为 1000
-                allowedFormats: ["csv", "json", "xlsx", "sql", "parquet"],  // 所有格式 → 建议只保留 csv, json
-                allowedTools: []  // 空数组表示所有工具都可用 → 建议只开放基础工具
-            )
-        case .pro:
-            return FeatureLimits(
-                maxRowsPerTable: 100000,
-                maxTables: 20,
-                maxExportSize: 100000,
-                allowedFormats: ["csv", "json", "xlsx", "sql"],
-                allowedTools: [
-                    "json.flatten", "json.format", "json.compress", "json.validate",
-                    "ip.convert", "ip.subnet",
-                    "timestamp.toDate", "timestamp.toTimestamp",
-                    "text.base64", "text.url"
-                ]
-            )
-        case .enterprise:
-            return FeatureLimits(
-                maxRowsPerTable: Int.max,
-                maxTables: Int.max,
-                maxExportSize: Int.max,
-                allowedFormats: ["csv", "json", "xlsx", "sql", "parquet"],
-                allowedTools: [] // 空数组表示所有工具都可用
-            )
-        }
-    }
-    
-    // MARK: - Permission Checks
-    
-    /// 检查是否可以添加更多表
-    func canAddMoreTables(currentCount: Int) -> Bool {
-        return currentCount < limits.maxTables
-    }
-    
-    /// 检查是否可以导入指定行数
-    func canImportRows(count: Int) -> Bool {
-        return count <= limits.maxRowsPerTable
-    }
-    
-    /// 获取允许导入的最大行数
-    func getMaxImportRows(requestedRows: Int) -> Int {
-        return min(requestedRows, limits.maxRowsPerTable)
-    }
-    
-    /// 检查是否支持指定格式
-    func supportsFormat(_ format: String) -> Bool {
-        return limits.allowedFormats.contains(format.lowercased())
-    }
-    
-    /// 检查是否可以使用指定工具
-    func canUseTool(_ toolId: String) -> Bool {
-        // 如果 allowedTools 为空，表示所有工具都可用
-        if limits.allowedTools.isEmpty {
-            return true
-        }
-        // 否则检查工具是否在允许列表中
-        return limits.allowedTools.contains(toolId)
-    }
-    
-    /// 检查功能是否可用
-    func hasFeature(_ feature: String) -> Bool {
-        guard let license = currentLicense else { return false }
-        return license.features[feature] ?? false
-    }
-    
-    // MARK: - Upgrade Prompts
-    
-    /// 获取升级提示信息
-    func getUpgradeMessage(for feature: String) -> String {
-        switch licenseType {
-        case .free:
-            return "此功能需要升级到专业版或企业版"
-        case .pro:
-            return "此功能仅在企业版中可用"
-        case .enterprise:
-            return ""
-        }
-    }
-    
-    /// 获取限制提示信息
-    func getLimitMessage(for limitType: String) -> String {
-        switch limitType {
-        case "rows":
-            return "免费版最多支持 \(limits.maxRowsPerTable) 行数据，升级到专业版可支持 100,000 行"
-        case "tables":
-            return "免费版最多支持 \(limits.maxTables) 个数据表，升级到专业版可支持 20 个"
-        case "export":
-            return "免费版导出限制为 \(limits.maxExportSize) 行，升级解除限制"
-        default:
-            return "升级到专业版或企业版以解锁更多功能"
+    var errorDescription: String? {
+        switch self {
+        case .invalidFormat:
+            return "激活码格式不正确，应为 XXXX-XXXX-XXXX-XXXX"
+        case .invalidEmail:
+            return "邮箱地址格式不正确"
+        case .invalidLicense:
+            return "激活码无效或已被使用"
+        case .networkError:
+            return "网络连接失败，请稍后重试"
         }
     }
 }

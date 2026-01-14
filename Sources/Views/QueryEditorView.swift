@@ -35,8 +35,8 @@ struct QueryEditorView: View {
                         // 工具按钮
                         HStack(spacing: DesignSystem.Spacing.sm) {
                             // 格式化按钮
-                            ToolbarButton(icon: "wand.and.stars", tooltip: "格式化 SQL") {
-                                // TODO: Format SQL
+                            ToolbarButton(icon: "wand.and.stars", tooltip: "格式化 SQL (⌘+Shift+F)") {
+                                viewModel.formatSQL()
                             }
                             
                             // 保存查询按钮
@@ -112,6 +112,17 @@ struct QueryEditorView: View {
                 }
             }
             .background(DesignSystem.Colors.background)
+        }
+        .onAppear {
+            // 注册格式化快捷键
+            NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                // ⌘+Shift+F
+                if event.modifierFlags.contains([.command, .shift]) && event.charactersIgnoringModifiers == "f" {
+                    viewModel.formatSQL()
+                    return nil
+                }
+                return event
+            }
         }
     }
 }

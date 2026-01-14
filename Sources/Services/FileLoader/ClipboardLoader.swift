@@ -34,13 +34,9 @@ struct ClipboardLoader {
         
         let originalRowCount = lines.count
         
-        // 使用许可证管理器获取最大行数限制
-        let licenseManager = LicenseManager.shared
-        let maxRows = licenseManager.getMaxImportRows(requestedRows: originalRowCount)
-        let isTruncated = originalRowCount > maxRows
-        
-        // 如果超过最大行数，只取前 maxRows 行
-        let linesToProcess = isTruncated ? Array(lines.prefix(maxRows)) : lines
+        // 试用期内不限制行数
+        let isTruncated = false
+        let linesToProcess = lines
         
         // 解析所有行
         var rows: [[String]] = []

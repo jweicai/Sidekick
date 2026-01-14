@@ -11,17 +11,39 @@ import AppKit
 @main
 struct SidekickApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @StateObject private var licenseManager = LicenseManager.shared
+    @State private var showActivationSheet = false
     
     var body: some Scene {
         WindowGroup {
-            MainView()
-                .onAppear {
-                    // 确保窗口获得焦点
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        NSApp.activate(ignoringOtherApps: true)
-                        NSApp.windows.first?.makeKeyAndOrderFront(nil)
-                    }
+            ZStack {
+                MainView()
+                    .disabled(licenseManager.isExpired)
+                    .blur(radius: licenseManager.isExpired ? 3 : 0)
+                
+                // 试用期过期遮罩
+                if licenseManager.isExpired {
+                    TrialExpiredOverlay(showActivationSheet: $showActivationSheet)
                 }
+            }
+            .onAppear {
+                // 确保窗口获得焦点
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    NSApp.activate(ignoringOtherApps: true)
+                    NSApp.windows.first?.makeKeyAndOrderFront(nil)
+                }
+                
+                // 检查许可证状态
+                licenseManager.checkLicenseStatus()
+                
+                // 如果试用期过期，显示激活界面
+                if licenseManager.isExpired {
+                    showActivationSheet = true
+                }
+            }
+            .sheet(isPresented: $showActivationSheet) {
+                ActivationView()
+            }
         }
         .defaultSize(width: 1200, height: 800)
         .commands {
@@ -31,7 +53,98 @@ struct SidekickApp: App {
                 }
                 .keyboardShortcut("n", modifiers: .command)
             }
+            
+            // 添加许可证菜单
+            CommandGroup(after: .appInfo) {
+                Button("激活许可证...") {
+                    showActivationSheet = true
+                }
+                
+                Divider()
+                
+                if licenseManager.isInTrial {
+                    Button("试用期剩余 \(licenseManager.trialDaysRemaining) 天") {
+                        showActivationSheet = true
+                    }
+                }
+            }
         }
+    }
+}
+
+/// 试用期过期遮罩
+struct TrialExpiredOverlay: View {
+    @Binding var showActivationSheet: Bool
+    
+    var body: some View {
+        VStack(spacing: 24) {
+            // 图标
+            ZStack {
+                Circle()
+                    .fill(Color.red.opacity(0.1))
+                    .frame(width: 100, height: 100)
+                
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 48))
+                    .foregroundColor(.red)
+            }
+            
+            // 文本
+            VStack(spacing: 12) {
+                Text("试用期已结束")
+                    .font(.system(size: 28, weight: .bold))
+                
+                Text("感谢您试用 Sidekick 90 天")
+                    .font(.system(size: 16))
+                    .foregroundColor(.secondary)
+                
+                Text("请购买激活码以继续使用")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+            }
+            
+            // 按钮
+            VStack(spacing: 12) {
+                Button(action: { showActivationSheet = true }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "key.fill")
+                        Text("激活许可证")
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundColor(.white)
+                    .frame(width: 200)
+                    .padding(.vertical, 14)
+                    .background(
+                        LinearGradient(
+                            colors: [Color.blue, Color.blue.opacity(0.8)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .cornerRadius(10)
+                }
+                .buttonStyle(.plain)
+                
+                Button(action: {
+                    if let url = URL(string: "https://your-store.com/sidekick") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "cart.fill")
+                        Text("购买激活码")
+                    }
+                    .foregroundColor(.blue)
+                    .frame(width: 200)
+                    .padding(.vertical, 14)
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(10)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(NSColor.windowBackgroundColor).opacity(0.98))
     }
 }
 

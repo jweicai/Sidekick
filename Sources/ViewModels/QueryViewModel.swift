@@ -149,6 +149,19 @@ class QueryViewModel: ObservableObject {
         return loadedTables[tableName]
     }
     
+    /// 格式化 SQL 查询
+    func formatSQL() {
+        // 如果有选中的文本，只格式化选中的部分
+        if !selectedSQLText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            let formatted = SQLFormatter.format(selectedSQLText)
+            // 替换选中的文本
+            sqlQuery = sqlQuery.replacingOccurrences(of: selectedSQLText, with: formatted)
+        } else {
+            // 格式化整个查询
+            sqlQuery = SQLFormatter.format(sqlQuery)
+        }
+    }
+    
     // MARK: - Export Methods
     
     /// 导出为 CSV

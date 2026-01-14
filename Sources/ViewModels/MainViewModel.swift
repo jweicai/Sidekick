@@ -94,12 +94,7 @@ class MainViewModel: ObservableObject {
     
     /// 加载文件
     func loadFile(url: URL) {
-        // 检查表数量限制
-        if !licenseManager.canAddMoreTables(currentCount: loadedTables.count) {
-            errorMessage = licenseManager.getLimitMessage(for: "tables")
-            return
-        }
-        
+        // 试用期内不限制表数量
         isLoading = true
         errorMessage = nil
         fileName = url.lastPathComponent
@@ -138,12 +133,7 @@ class MainViewModel: ObservableObject {
     
     /// 从剪贴板加载数据
     func loadFromClipboard() {
-        // 检查表数量限制
-        if !licenseManager.canAddMoreTables(currentCount: loadedTables.count) {
-            errorMessage = licenseManager.getLimitMessage(for: "tables")
-            return
-        }
-        
+        // 试用期内不限制表数量
         isLoading = true
         errorMessage = nil
         
