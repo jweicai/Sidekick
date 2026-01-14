@@ -84,20 +84,42 @@ class QueryViewModel: ObservableObject {
         errorMessage = nil
         queryResult = nil
         
+        let startTime = Date()
+        
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else { return }
             
             do {
                 let result = try self.sqlEngine.executeQuery(sql: queryToExecute)
+                let executionTime = Date().timeIntervalSince(startTime)
                 
                 DispatchQueue.main.async {
                     self.queryResult = result
                     self.isExecuting = false
+                    
+                    // 保存到历史记录
+                    let history = QueryHistory(
+                        query: queryToExecute,
+                        rowCount: result.rowCount,
+                        executionTime: executionTime,
+                        isSuccess: true
+                    )
+                    QueryHistoryManager.shared.saveHistory(history)
                 }
             } catch {
+                let executionTime = Date().timeIntervalSince(startTime)
+                
                 DispatchQueue.main.async {
                     self.errorMessage = error.localizedDescription
                     self.isExecuting = false
+                    
+                    // 保存失败的查询到历史记录
+                    let history = QueryHistory(
+                        query: queryToExecute,
+                        executionTime: executionTime,
+                        isSuccess: false
+                    )
+                    QueryHistoryManager.shared.saveHistory(history)
                 }
             }
         }
@@ -160,6 +182,28 @@ class QueryViewModel: ObservableObject {
             // 格式化整个查询
             sqlQuery = SQLFormatter.format(sqlQuery)
         }
+    }
+    
+    // MARK: - Query History Methods
+    
+    /// 获取查询历史
+    func getQueryHistories() -> [QueryHistory] {
+        return QueryHistoryManager.shared.loadHistories()
+    }
+    
+    /// 从历史记录加载查询
+    func loadQueryFromHistory(_ history: QueryHistory) {
+        sqlQuery = history.query
+    }
+    
+    /// 删除历史记录
+    func deleteHistory(id: UUID) {
+        QueryHistoryManager.shared.deleteHistory(id: id)
+    }
+    
+    /// 清空所有历史记录
+    func clearAllHistories() {
+        QueryHistoryManager.shared.clearAllHistories()
     }
     
     // MARK: - Export Methods

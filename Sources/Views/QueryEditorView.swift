@@ -12,14 +12,17 @@ struct QueryEditorView: View {
     @ObservedObject var viewModel: QueryViewModel
     @State private var editorHeight: CGFloat = 160
     @State private var isDragging = false
+    @State private var showHistory = false
     
     var body: some View {
         GeometryReader { geometry in
-            VStack(spacing: 0) {
-                // SQL 编辑区域
-                VStack(alignment: .leading, spacing: 0) {
-                    // 工具栏
-                    HStack(spacing: DesignSystem.Spacing.md) {
+            HStack(spacing: 0) {
+                // 主编辑区域
+                VStack(spacing: 0) {
+                    // SQL 编辑区域
+                    VStack(alignment: .leading, spacing: 0) {
+                        // 工具栏
+                        HStack(spacing: DesignSystem.Spacing.md) {
                         HStack(spacing: DesignSystem.Spacing.sm) {
                             Image(systemName: "chevron.left.forwardslash.chevron.right")
                                 .font(.system(size: 12, weight: .medium))
@@ -34,14 +37,20 @@ struct QueryEditorView: View {
                         
                         // 工具按钮
                         HStack(spacing: DesignSystem.Spacing.sm) {
+                            // 历史记录按钮
+                            ToolbarButton(
+                                icon: "clock.arrow.circlepath",
+                                tooltip: "查询历史",
+                                isActive: showHistory
+                            ) {
+                                withAnimation {
+                                    showHistory.toggle()
+                                }
+                            }
+                            
                             // 格式化按钮
                             ToolbarButton(icon: "wand.and.stars", tooltip: "格式化 SQL (⌘+Shift+F)") {
                                 viewModel.formatSQL()
-                            }
-                            
-                            // 保存查询按钮
-                            ToolbarButton(icon: "square.and.arrow.down", tooltip: "保存查询") {
-                                // TODO: Save query
                             }
                             
                             Divider()
@@ -112,6 +121,13 @@ struct QueryEditorView: View {
                 }
             }
             .background(DesignSystem.Colors.background)
+                
+                // 历史记录面板
+                if showHistory {
+                    Divider()
+                    QueryHistoryView(viewModel: viewModel)
+                }
+            }
         }
         .onAppear {
             // 注册格式化快捷键
@@ -160,6 +176,7 @@ struct DraggableDivider: View {
 struct ToolbarButton: View {
     let icon: String
     let tooltip: String
+    var isActive: Bool = false
     let action: () -> Void
     
     @State private var isHovering = false
@@ -168,9 +185,9 @@ struct ToolbarButton: View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: 13))
-                .foregroundColor(isHovering ? DesignSystem.Colors.accent : DesignSystem.Colors.textSecondary)
+                .foregroundColor((isHovering || isActive) ? DesignSystem.Colors.accent : DesignSystem.Colors.textSecondary)
                 .frame(width: 28, height: 28)
-                .background(isHovering ? DesignSystem.Colors.accent.opacity(0.1) : Color.clear)
+                .background((isHovering || isActive) ? DesignSystem.Colors.accent.opacity(0.1) : Color.clear)
                 .cornerRadius(DesignSystem.CornerRadius.small)
         }
         .buttonStyle(.plain)

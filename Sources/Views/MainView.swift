@@ -309,9 +309,6 @@ struct ProcessingContentView: View {
     @State private var showUpgradeAlert = false
     
     var body: some View {
-        let licenseManager = LicenseManager.shared
-        let toolId = "\(format.rawValue.lowercased()).\(method.id)"
-        
         // 试用期内所有工具都可用
         Group {
             switch format {
@@ -363,6 +360,18 @@ struct ProcessingContentView: View {
                         HashToolView()
                     case "diff":
                         TextDiffView()
+                    default:
+                        ComingSoonView(format: format, method: method)
+                    }
+                    
+                case .other:
+                    switch method.id {
+                    case "uuid":
+                        UUIDGeneratorView()
+                    case "color":
+                        ColorConverterView()
+                    case "regex":
+                        RegexTesterView()
                     default:
                         ComingSoonView(format: format, method: method)
                     }
