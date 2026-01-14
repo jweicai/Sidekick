@@ -57,11 +57,11 @@ class ParquetLoader: FileLoaderProtocol {
             throw ParquetLoaderError.emptyFile
         }
         
-        // 获取列信息
+        // 获取列信息（通过尝试不同类型的 cast 来推断）
         var columns: [Column] = []
         for columnIndex in 0..<result.columnCount {
-            let columnName = result.columns[columnIndex].name
-            let columnType = inferColumnType(from: result, columnIndex: columnIndex)
+            let columnName = result.columnName(at: columnIndex)
+            let columnType = inferColumnTypeFromDuckDB(result: result, columnIndex: columnIndex)
             columns.append(Column(name: columnName, type: columnType))
         }
         
@@ -70,8 +70,9 @@ class ParquetLoader: FileLoaderProtocol {
         for rowIndex in 0..<result.rowCount {
             var row: [String] = []
             for columnIndex in 0..<result.columnCount {
-                let value = result[rowIndex][columnIndex]
-                row.append(stringValue(from: value))
+                let column = result[columnIndex].cast(to: String.self)
+                let value = column[rowIndex] ?? ""
+                row.append(value)
             }
             rows.append(row)
         }
@@ -79,102 +80,56 @@ class ParquetLoader: FileLoaderProtocol {
         return DataFrame(columns: columns, rows: rows)
     }
     
-    /// 推断列类型
-    private func inferColumnType(from result: DuckDB.ResultSet, columnIndex: Int) -> ColumnType {
-        // 检查前几行数据来推断类型
-        let sampleSize = min(10, result.rowCount)
-        var hasInteger = false
-        var hasDecimal = false
-        var hasDate = false
+    /// 通过 DuckDB 的类型推断列类型
+    private func inferColumnTypeFromDuckDB(result: DuckDB.ResultSet, columnIndex: DBInt) -> ColumnType {
+        // 尝试获取第一行数据来判断类型
+        guard result.rowCount > 0 else { return .text }
         
-        for rowIndex in 0..<sampleSize {
-            let value = result[rowIndex][columnIndex]
-            let stringValue = self.stringValue(from: value)
-            
-            if stringValue.isEmpty { continue }
-            
-            // 检查是否为整数
-            if Int(stringValue) != nil {
-                hasInteger = true
-            }
-            // 检查是否为小数
-            else if Double(stringValue) != nil {
-                hasDecimal = true
-            }
-            // 检查是否为日期
-            else if isDateString(stringValue) {
-                hasDate = true
+        let column = result[columnIndex]
+        
+        // 尝试不同的类型转换，看哪个成功
+        // 注意：DuckDB 会自动处理类型转换，所以我们需要检查原始值
+        
+        // 尝试布尔类型
+        if let boolColumn = column.cast(to: Bool.self)[0], boolColumn != nil {
+            // 检查是否真的是布尔值（而不是数字转换来的）
+            let strColumn = column.cast(to: String.self)
+            if let strValue = strColumn[0]?.lowercased(), 
+               strValue == "true" || strValue == "false" {
+                return .boolean
             }
         }
         
-        if hasDate { return .date }
-        if hasDecimal { return .decimal }
-        if hasInteger { return .integer }
+        // 尝试整数类型
+        if let intColumn = column.cast(to: Int.self)[0], intColumn != nil {
+            // 检查是否有小数点
+            let strColumn = column.cast(to: String.self)
+            if let strValue = strColumn[0], !strValue.contains(".") {
+                return .integer
+            }
+        }
+        
+        // 尝试浮点数类型
+        if let doubleColumn = column.cast(to: Double.self)[0], doubleColumn != nil {
+            return .real
+        }
+        
+        // 尝试日期类型
+        let strColumn = column.cast(to: String.self)
+        if let strValue = strColumn[0], isDateString(strValue) {
+            return .date
+        }
+        
+        // 默认为文本
         return .text
-    }
-    
-    /// 将 DuckDB 值转换为字符串
-    private func stringValue(from value: DatabaseValue) -> String {
-        switch value {
-        case .null:
-            return ""
-        case .boolean(let bool):
-            return bool ? "true" : "false"
-        case .tinyInt(let int):
-            return String(int)
-        case .smallInt(let int):
-            return String(int)
-        case .integer(let int):
-            return String(int)
-        case .bigInt(let int):
-            return String(int)
-        case .hugeInt(let int):
-            return String(int)
-        case .uTinyInt(let uint):
-            return String(uint)
-        case .uSmallInt(let uint):
-            return String(uint)
-        case .uInteger(let uint):
-            return String(uint)
-        case .uBigInt(let uint):
-            return String(uint)
-        case .float(let float):
-            return String(float)
-        case .double(let double):
-            return String(double)
-        case .decimal(let decimal):
-            return decimal.description
-        case .varchar(let string):
-            return string
-        case .blob(let data):
-            return data.base64EncodedString()
-        case .date(let date):
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd"
-            return formatter.string(from: date)
-        case .time(let time):
-            return time.description
-        case .timestamp(let timestamp):
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-            return formatter.string(from: timestamp)
-        case .interval(let interval):
-            return interval.description
-        case .uuid(let uuid):
-            return uuid.uuidString
-        case .list(let array):
-            return array.map { stringValue(from: $0) }.joined(separator: ", ")
-        case .struct(let dict):
-            return dict.map { "\($0.key): \(stringValue(from: $0.value))" }.joined(separator: ", ")
-        }
     }
     
     /// 检查字符串是否为日期格式
     private func isDateString(_ string: String) -> Bool {
         let datePatterns = [
-            "^\\d{4}-\\d{1,2}-\\d{1,2}",
-            "^\\d{4}/\\d{1,2}/\\d{1,2}",
-            "^\\d{4}年\\d{1,2}月\\d{1,2}日"
+            "^\\d{4}-\\d{1,2}-\\d{1,2}",           // 2024-01-15
+            "^\\d{4}/\\d{1,2}/\\d{1,2}",           // 2024/01/15
+            "^\\d{4}年\\d{1,2}月\\d{1,2}日"        // 2024年1月15日
         ]
         
         for pattern in datePatterns {

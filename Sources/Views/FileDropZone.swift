@@ -122,9 +122,13 @@ struct FileDropZone: View {
         panel.allowedContentTypes = [
             .commaSeparatedText,
             .json,
-            .plainText
+            .plainText,
+            .init(filenameExtension: "xlsx")!,
+            .init(filenameExtension: "parquet")!,
+            .init(filenameExtension: "md")!,
+            .init(filenameExtension: "markdown")!
         ]
-        panel.message = "选择 CSV 或 JSON 数据文件"
+        panel.message = "选择数据文件 (CSV, JSON, XLSX, Parquet, Markdown)"
         
         if panel.runModal() == .OK {
             droppedFileURL = panel.url

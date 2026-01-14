@@ -26,6 +26,9 @@ let package = Package(
                 .product(name: "DuckDB", package: "duckdb-swift")
             ],
             path: "Sources",
+            resources: [
+                .process("Resources")
+            ],
             swiftSettings: [
                 .unsafeFlags(["-parse-as-library"])
             ]

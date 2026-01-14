@@ -98,7 +98,10 @@ struct MainView: View {
         panel.allowedContentTypes = [
             .init(filenameExtension: "csv")!,
             .init(filenameExtension: "json")!,
-            .init(filenameExtension: "xlsx")!
+            .init(filenameExtension: "xlsx")!,
+            .init(filenameExtension: "parquet")!,
+            .init(filenameExtension: "md")!,
+            .init(filenameExtension: "markdown")!
         ]
         
         if panel.runModal() == .OK {
