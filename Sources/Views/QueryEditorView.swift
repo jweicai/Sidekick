@@ -14,6 +14,15 @@ struct QueryEditorView: View {
     @State private var isDragging = false
     @State private var showHistory = false
     
+    // 计算编辑器应该占用的高度
+    private func calculateEditorHeight(geometry: GeometryProxy) -> CGFloat {
+        // 如果没有结果、错误或正在执行，编辑器占据所有可用空间
+        if !viewModel.isExecuting && viewModel.errorMessage == nil && viewModel.queryResult == nil {
+            return geometry.size.height - 60 // 减去工具栏高度
+        }
+        return editorHeight
+    }
+    
     var body: some View {
         GeometryReader { geometry in
             HStack(spacing: 0) {
@@ -90,7 +99,7 @@ struct QueryEditorView: View {
                     
                     // SQL 编辑器
                     SQLTextEditor(text: $viewModel.sqlQuery, selectedText: $viewModel.selectedSQLText)
-                        .frame(height: editorHeight)
+                        .frame(height: calculateEditorHeight(geometry: geometry))
                 }
                 
                 // 只在有结果、错误或正在执行时显示分隔条和结果区域
