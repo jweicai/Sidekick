@@ -38,10 +38,23 @@ struct QueryHistory: Identifiable, Codable {
         return String(format: "%.3fs", time)
     }
     
+    /// 格式化的执行时间（毫秒）
+    var formattedExecutionTimeMs: String {
+        guard let time = executionTime else { return "-" }
+        return String(format: "%.0fms", time * 1000)
+    }
+    
     /// 格式化的日期时间
     var formattedDate: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "MM-dd HH:mm"
+        return formatter.string(from: executedAt)
+    }
+    
+    /// 格式化的完整日期时间
+    var formattedDateFull: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
         return formatter.string(from: executedAt)
     }
     

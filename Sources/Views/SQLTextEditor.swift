@@ -15,7 +15,6 @@ struct SQLTextEditor: NSViewRepresentable {
     @AppStorage("showLineNumbers") private var showLineNumbers = true
     
     func makeNSView(context: Context) -> NSScrollView {
-        // 使用 Apple 推荐的方式创建可滚动的文本视图
         let scrollView = NSTextView.scrollableTextView()
         
         guard let textView = scrollView.documentView as? NSTextView else {
@@ -29,10 +28,29 @@ struct SQLTextEditor: NSViewRepresentable {
         textView.allowsUndo = true
         
         // 字体和颜色
-        textView.font = NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
-        textView.textColor = NSColor.black
-        textView.backgroundColor = NSColor.white
-        textView.insertionPointColor = NSColor.black
+        let font = NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
+        textView.font = font
+        textView.textColor = NSColor.labelColor
+        textView.backgroundColor = NSColor.textBackgroundColor
+        textView.insertionPointColor = NSColor.labelColor
+        
+        // 设置行高（固定行高，文字垂直居中）
+        let lineHeight: CGFloat = 18
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.minimumLineHeight = lineHeight
+        paragraphStyle.maximumLineHeight = lineHeight
+        
+        // 计算 baselineOffset 使文字垂直居中
+        let fontLineHeight = font.ascender - font.descender + font.leading
+        let baselineOffset = (lineHeight - fontLineHeight) / 2
+        
+        textView.defaultParagraphStyle = paragraphStyle
+        textView.typingAttributes = [
+            .font: font,
+            .foregroundColor: NSColor.labelColor,
+            .paragraphStyle: paragraphStyle,
+            .baselineOffset: baselineOffset
+        ]
         
         // 禁用自动替换功能
         textView.isAutomaticQuoteSubstitutionEnabled = false
@@ -46,8 +64,9 @@ struct SQLTextEditor: NSViewRepresentable {
         // 内边距
         textView.textContainerInset = NSSize(width: 8, height: 8)
         
-        // 设置初始文本
+        // 设置初始文本并应用高亮
         textView.string = text
+        SQLSyntaxHighlighter.highlight(textView: textView)
         
         // 设置代理
         textView.delegate = context.coordinator
@@ -58,7 +77,7 @@ struct SQLTextEditor: NSViewRepresentable {
         scrollView.autohidesScrollers = true
         scrollView.borderType = .noBorder
         scrollView.drawsBackground = true
-        scrollView.backgroundColor = NSColor.white
+        scrollView.backgroundColor = NSColor.textBackgroundColor
         
         // 添加行号视图
         if showLineNumbers {
@@ -74,10 +93,16 @@ struct SQLTextEditor: NSViewRepresentable {
     func updateNSView(_ nsView: NSScrollView, context: Context) {
         guard let textView = nsView.documentView as? NSTextView else { return }
         
+        // 如果正在进行 IME 输入，不要更新文本
+        if textView.markedRange().length > 0 {
+            return
+        }
+        
         // 只有当文本不同时才更新
         if textView.string != text {
             let selectedRanges = textView.selectedRanges
             textView.string = text
+            SQLSyntaxHighlighter.highlight(textView: textView)
             textView.selectedRanges = selectedRanges
         }
         
@@ -100,6 +125,7 @@ struct SQLTextEditor: NSViewRepresentable {
     
     class Coordinator: NSObject, NSTextViewDelegate {
         let parent: SQLTextEditor
+        private var highlightWorkItem: DispatchWorkItem?
         
         init(_ parent: SQLTextEditor) {
             self.parent = parent
@@ -107,8 +133,26 @@ struct SQLTextEditor: NSViewRepresentable {
         
         func textDidChange(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
+            
+            // 如果正在进行 IME 输入（中文等），不要更新
+            if textView.markedRange().length > 0 {
+                return
+            }
+            
             parent.text = textView.string
             updateSelectedText(textView)
+            
+            // 防抖高亮更新
+            highlightWorkItem?.cancel()
+            let workItem = DispatchWorkItem { [weak textView] in
+                guard let textView = textView else { return }
+                // 再次检查是否在 IME 输入中
+                if textView.markedRange().length == 0 {
+                    SQLSyntaxHighlighter.highlight(textView: textView)
+                }
+            }
+            highlightWorkItem = workItem
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: workItem)
             
             // 更新行号
             if let scrollView = textView.enclosingScrollView,
@@ -131,6 +175,171 @@ struct SQLTextEditor: NSViewRepresentable {
                 parent.selectedText = ""
             }
         }
+    }
+}
+
+// MARK: - SQL 语法高亮器
+
+enum SQLSyntaxHighlighter {
+    
+    // 颜色定义 - 现代配色（类似 VS Code One Dark）
+    private static let keywordColor = NSColor(red: 0.78, green: 0.47, blue: 0.86, alpha: 1.0)   // 紫色 - 关键字
+    private static let functionColor = NSColor(red: 0.38, green: 0.71, blue: 0.93, alpha: 1.0)  // 蓝色 - 函数
+    private static let stringColor = NSColor(red: 0.59, green: 0.78, blue: 0.47, alpha: 1.0)    // 绿色 - 字符串
+    private static let numberColor = NSColor(red: 0.82, green: 0.58, blue: 0.40, alpha: 1.0)    // 橙色 - 数字
+    private static let commentColor = NSColor(red: 0.50, green: 0.55, blue: 0.60, alpha: 1.0)   // 灰色 - 注释
+    private static let operatorColor = NSColor(red: 0.87, green: 0.75, blue: 0.49, alpha: 1.0)  // 黄色 - 操作符
+    private static let defaultColor = NSColor(red: 0.22, green: 0.24, blue: 0.28, alpha: 1.0)   // 深灰 - 默认
+    
+    // SQL 关键字
+    private static let keywords: Set<String> = [
+        "select", "from", "where", "and", "or", "not", "in", "between", "like", "is", "null",
+        "as", "on", "using", "join", "inner", "left", "right", "full", "cross", "outer",
+        "group", "by", "having", "order", "asc", "desc", "limit", "offset",
+        "union", "intersect", "except", "all", "distinct",
+        "insert", "into", "values", "update", "set", "delete",
+        "create", "alter", "drop", "truncate", "table", "index", "view",
+        "case", "when", "then", "else", "end",
+        "with", "recursive", "over", "partition", "rows", "range",
+        "unbounded", "preceding", "following", "current", "row",
+        "exists", "any", "some", "true", "false",
+        "primary", "key", "foreign", "references", "unique", "default", "constraint",
+        "if", "nulls", "first", "last"
+    ]
+    
+    // SQL 函数
+    private static let functions: Set<String> = [
+        "count", "sum", "avg", "min", "max", "abs", "round", "floor", "ceil", "ceiling",
+        "length", "len", "upper", "lower", "trim", "ltrim", "rtrim", "substring", "substr",
+        "concat", "replace", "reverse", "left", "right", "lpad", "rpad",
+        "coalesce", "nullif", "ifnull", "isnull", "nvl", "nvl2",
+        "cast", "convert", "date", "time", "datetime", "timestamp",
+        "year", "month", "day", "hour", "minute", "second",
+        "now", "current_date", "current_time", "current_timestamp",
+        "row_number", "rank", "dense_rank", "ntile", "lag", "lead",
+        "first_value", "last_value", "nth_value",
+        "listagg", "string_agg", "group_concat", "array_agg"
+    ]
+    
+    static func highlight(textView: NSTextView) {
+        guard let textStorage = textView.textStorage else { return }
+        
+        let text = textView.string
+        let fullRange = NSRange(location: 0, length: (text as NSString).length)
+        
+        // 保存当前选择
+        let selectedRanges = textView.selectedRanges
+        
+        // 创建段落样式（固定行高，文字垂直居中）
+        let lineHeight: CGFloat = 18
+        let font = NSFont.monospacedSystemFont(ofSize: 13, weight: .regular)
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.minimumLineHeight = lineHeight
+        paragraphStyle.maximumLineHeight = lineHeight
+        
+        let fontLineHeight = font.ascender - font.descender + font.leading
+        let baselineOffset = (lineHeight - fontLineHeight) / 2
+        
+        // 开始编辑
+        textStorage.beginEditing()
+        
+        // 重置为默认样式（包含行高和垂直居中）
+        textStorage.setAttributes([
+            .font: font,
+            .foregroundColor: defaultColor,
+            .paragraphStyle: paragraphStyle,
+            .baselineOffset: baselineOffset
+        ], range: fullRange)
+        
+        // 高亮注释 (先处理，避免被其他规则覆盖)
+        highlightComments(textStorage: textStorage, text: text)
+        
+        // 高亮字符串
+        highlightStrings(textStorage: textStorage, text: text)
+        
+        // 高亮数字
+        highlightNumbers(textStorage: textStorage, text: text)
+        
+        // 高亮关键字和函数
+        highlightKeywordsAndFunctions(textStorage: textStorage, text: text)
+        
+        // 结束编辑
+        textStorage.endEditing()
+        
+        // 恢复选择
+        textView.selectedRanges = selectedRanges
+    }
+    
+    private static func highlightComments(textStorage: NSTextStorage, text: String) {
+        // 单行注释 --
+        let singleLinePattern = "--[^\n]*"
+        applyPattern(singleLinePattern, to: textStorage, text: text, color: commentColor)
+        
+        // 多行注释 /* */
+        let multiLinePattern = "/\\*[\\s\\S]*?\\*/"
+        applyPattern(multiLinePattern, to: textStorage, text: text, color: commentColor)
+    }
+    
+    private static func highlightStrings(textStorage: NSTextStorage, text: String) {
+        // 单引号字符串
+        let singleQuotePattern = "'(?:[^'\\\\]|\\\\.)*'"
+        applyPattern(singleQuotePattern, to: textStorage, text: text, color: stringColor)
+        
+        // 双引号字符串
+        let doubleQuotePattern = "\"(?:[^\"\\\\]|\\\\.)*\""
+        applyPattern(doubleQuotePattern, to: textStorage, text: text, color: stringColor)
+    }
+    
+    private static func highlightNumbers(textStorage: NSTextStorage, text: String) {
+        let numberPattern = "\\b\\d+\\.?\\d*\\b"
+        applyPattern(numberPattern, to: textStorage, text: text, color: numberColor)
+    }
+    
+    private static func highlightKeywordsAndFunctions(textStorage: NSTextStorage, text: String) {
+        // 匹配单词
+        let wordPattern = "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b"
+        guard let regex = try? NSRegularExpression(pattern: wordPattern, options: []) else { return }
+        
+        let range = NSRange(location: 0, length: (text as NSString).length)
+        let matches = regex.matches(in: text, options: [], range: range)
+        
+        for match in matches {
+            let matchRange = match.range
+            let word = (text as NSString).substring(with: matchRange).lowercased()
+            
+            // 检查是否在注释或字符串中 (简单检查)
+            if isInCommentOrString(range: matchRange, textStorage: textStorage) {
+                continue
+            }
+            
+            if keywords.contains(word) {
+                textStorage.addAttribute(.foregroundColor, value: keywordColor, range: matchRange)
+            } else if functions.contains(word) {
+                textStorage.addAttribute(.foregroundColor, value: functionColor, range: matchRange)
+            }
+        }
+    }
+    
+    private static func applyPattern(_ pattern: String, to textStorage: NSTextStorage, text: String, color: NSColor) {
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { return }
+        
+        let range = NSRange(location: 0, length: (text as NSString).length)
+        let matches = regex.matches(in: text, options: [], range: range)
+        
+        for match in matches {
+            textStorage.addAttribute(.foregroundColor, value: color, range: match.range)
+        }
+    }
+    
+    private static func isInCommentOrString(range: NSRange, textStorage: NSTextStorage) -> Bool {
+        // 检查该位置的颜色是否已经是注释或字符串颜色
+        guard range.location < textStorage.length else { return false }
+        
+        let attrs = textStorage.attributes(at: range.location, effectiveRange: nil)
+        if let color = attrs[.foregroundColor] as? NSColor {
+            return color == commentColor || color == stringColor
+        }
+        return false
     }
 }
 
@@ -206,6 +415,6 @@ class LineNumberRulerView: NSRulerView {
 }
 
 #Preview {
-    SQLTextEditor(text: .constant("SELECT * FROM users;"), selectedText: .constant(""))
+    SQLTextEditor(text: .constant("SELECT * FROM users WHERE id = 1;"), selectedText: .constant(""))
         .frame(height: 200)
 }

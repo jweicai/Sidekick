@@ -222,9 +222,7 @@ struct TimestampConverterView: View {
                                     }
                                     .buttonStyle(.plain)
                                     .disabled(timestampInput.isEmpty)
-                                }
-                                
-                                HStack(spacing: DesignSystem.Spacing.sm) {
+                                    
                                     TextField("转换结果", text: $timestampOutput)
                                         .textFieldStyle(.plain)
                                         .font(.system(size: 13, design: .monospaced))
@@ -291,9 +289,7 @@ struct TimestampConverterView: View {
                                     }
                                     .buttonStyle(.plain)
                                     .disabled(dateInput.isEmpty)
-                                }
-                                
-                                HStack(spacing: DesignSystem.Spacing.sm) {
+                                    
                                     TextField("转换结果", text: $dateOutput)
                                         .textFieldStyle(.plain)
                                         .font(.system(size: 13, design: .monospaced))

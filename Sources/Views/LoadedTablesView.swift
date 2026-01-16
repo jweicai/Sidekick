@@ -148,33 +148,31 @@ struct TableRowView: View {
                 }
                 .buttonStyle(.plain)
                 
-                // 表图标
-                Image(systemName: "tablecells")
+                // 表图标 - 根据状态显示不同颜色
+                Image(systemName: table.status.isError ? "exclamationmark.triangle.fill" : "tablecells")
                     .font(.system(size: 13))
-                    .foregroundColor(isSelected ? DesignSystem.Colors.accent : DesignSystem.Colors.textSecondary)
+                    .foregroundColor(tableIconColor)
                 
                 // 表信息
                 VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 4) {
-                        Text(table.name)
-                            .font(DesignSystem.Typography.body)
-                            .fontWeight(isSelected ? .medium : .regular)
-                            .foregroundColor(DesignSystem.Colors.textPrimary)
-                            .lineLimit(1)
-                        
-                        // 截断提示标记
-                        if table.isTruncated {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .font(.system(size: 9))
-                                .foregroundColor(DesignSystem.Colors.warning)
-                                .help("数据已截断：仅显示前 \(table.rowCount) 行，共 \(table.originalRowCount ?? 0) 行")
-                        }
-                    }
-                    
-                    Text("\(table.displayName) · \(table.rowCountDisplay) × \(table.columnCount)")
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundColor(DesignSystem.Colors.textMuted)
+                    Text(table.name)
+                        .font(DesignSystem.Typography.body)
+                        .fontWeight(isSelected ? .medium : .regular)
+                        .foregroundColor(table.status.isError ? DesignSystem.Colors.error : DesignSystem.Colors.textPrimary)
                         .lineLimit(1)
+                    
+                    // 显示错误信息或正常信息
+                    if let errorMsg = table.status.errorMessage {
+                        Text(errorMsg)
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.error)
+                            .lineLimit(2)
+                    } else {
+                        Text("\(table.displayName) · \(table.rowCountDisplay) × \(table.columnCount)")
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.textMuted)
+                            .lineLimit(1)
+                    }
                 }
                 
                 Spacer()
@@ -182,27 +180,29 @@ struct TableRowView: View {
                 // 悬停时显示操作按钮
                 if isHovering {
                     HStack(spacing: 4) {
-                        // 导出菜单
-                        Menu {
-                            Button("导出为 CSV") {
-                                exportTable(format: .csv)
+                        // 导出菜单（仅正常状态显示）
+                        if table.status.isReady {
+                            Menu {
+                                Button("导出为 CSV") {
+                                    exportTable(format: .csv)
+                                }
+                                Button("导出为 JSON") {
+                                    exportTable(format: .json)
+                                }
+                                Button("生成 INSERT 语句") {
+                                    exportTable(format: .sql)
+                                }
+                            } label: {
+                                Image(systemName: "square.and.arrow.up")
+                                    .font(.system(size: 9, weight: .medium))
+                                    .foregroundColor(DesignSystem.Colors.textMuted)
+                                    .frame(width: 18, height: 18)
+                                    .background(DesignSystem.Colors.sidebarHover)
+                                    .cornerRadius(4)
                             }
-                            Button("导出为 JSON") {
-                                exportTable(format: .json)
-                            }
-                            Button("生成 INSERT 语句") {
-                                exportTable(format: .sql)
-                            }
-                        } label: {
-                            Image(systemName: "square.and.arrow.up")
-                                .font(.system(size: 9, weight: .medium))
-                                .foregroundColor(DesignSystem.Colors.textMuted)
-                                .frame(width: 18, height: 18)
-                                .background(DesignSystem.Colors.sidebarHover)
-                                .cornerRadius(4)
+                            .menuStyle(.borderlessButton)
+                            .help("导出表")
                         }
-                        .menuStyle(.borderlessButton)
-                        .help("导出表")
                         
                         // 删除按钮
                         Button(action: onRemove) {
@@ -222,8 +222,7 @@ struct TableRowView: View {
             .padding(.vertical, DesignSystem.Spacing.sm)
             .background(
                 RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.small)
-                    .fill(isSelected ? DesignSystem.Colors.accent.opacity(0.1) : 
-                          (isHovering ? DesignSystem.Colors.sidebarHover : Color.clear))
+                    .fill(rowBackgroundColor)
             )
             .contentShape(Rectangle())
             .onTapGesture(perform: onSelect)
@@ -233,8 +232,8 @@ struct TableRowView: View {
                 }
             }
             
-            // 列详情
-            if showDetails {
+            // 列详情（仅正常状态显示）
+            if showDetails && table.status.isReady {
                 ColumnDetailsView(columns: table.dataFrame.columns)
                     .padding(.leading, 28)
                     .padding(.trailing, DesignSystem.Spacing.md)
@@ -243,6 +242,26 @@ struct TableRowView: View {
             }
         }
         .padding(.horizontal, DesignSystem.Spacing.xs)
+    }
+    
+    private var tableIconColor: Color {
+        if table.status.isError {
+            return DesignSystem.Colors.error
+        }
+        return isSelected ? DesignSystem.Colors.accent : DesignSystem.Colors.textSecondary
+    }
+    
+    private var rowBackgroundColor: Color {
+        if table.status.isError {
+            return DesignSystem.Colors.error.opacity(0.1)
+        }
+        if isSelected {
+            return DesignSystem.Colors.accent.opacity(0.1)
+        }
+        if isHovering {
+            return DesignSystem.Colors.sidebarHover
+        }
+        return Color.clear
     }
     
     // MARK: - Export Functions

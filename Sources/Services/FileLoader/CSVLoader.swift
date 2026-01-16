@@ -97,48 +97,49 @@ class CSVLoader: FileLoaderProtocol {
         return !secondRowAllNumeric
     }
     
-    /// 解析单行数据
+    /// 解析单行数据 (RFC 4180 标准)
+    /// 规则：
+    /// 1. 字段可以用双引号包围
+    /// 2. 包含逗号、双引号、换行的字段必须用双引号包围
+    /// 3. 字段内的双引号用 "" 表示
     private func parseRow(_ line: String) -> [String] {
         var result: [String] = []
         var currentField = ""
         var insideQuotes = false
-        var previousChar: Character?
+        var chars = Array(line)
+        var i = 0
         
-        for char in line {
+        while i < chars.count {
+            let char = chars[i]
+            
             if char == "\"" {
-                // Handle escaped quotes (double quotes)
-                if insideQuotes && previousChar == "\"" {
-                    currentField.append(char)
-                    previousChar = nil // Reset to avoid double processing
-                    continue
-                }
-                insideQuotes.toggle()
-            } else if char == "," && !insideQuotes {
-                // Remove surrounding quotes if present
-                let trimmed = currentField.trimmingCharacters(in: .whitespaces)
-                if trimmed.hasPrefix("\"") && trimmed.hasSuffix("\"") && trimmed.count >= 2 {
-                    let startIndex = trimmed.index(after: trimmed.startIndex)
-                    let endIndex = trimmed.index(before: trimmed.endIndex)
-                    result.append(String(trimmed[startIndex..<endIndex]))
+                if !insideQuotes {
+                    // 进入引号模式
+                    insideQuotes = true
                 } else {
-                    result.append(trimmed)
+                    // 在引号内，检查下一个字符
+                    if i + 1 < chars.count && chars[i + 1] == "\"" {
+                        // "" 表示转义的双引号
+                        currentField.append("\"")
+                        i += 1  // 跳过下一个引号
+                    } else {
+                        // 结束引号模式
+                        insideQuotes = false
+                    }
                 }
+            } else if char == "," && !insideQuotes {
+                // 字段分隔符
+                result.append(currentField)
                 currentField = ""
             } else {
                 currentField.append(char)
             }
-            previousChar = char
+            
+            i += 1
         }
         
         // 添加最后一个字段
-        let trimmed = currentField.trimmingCharacters(in: .whitespaces)
-        if trimmed.hasPrefix("\"") && trimmed.hasSuffix("\"") && trimmed.count >= 2 {
-            let startIndex = trimmed.index(after: trimmed.startIndex)
-            let endIndex = trimmed.index(before: trimmed.endIndex)
-            result.append(String(trimmed[startIndex..<endIndex]))
-        } else {
-            result.append(trimmed)
-        }
+        result.append(currentField)
         
         return result
     }

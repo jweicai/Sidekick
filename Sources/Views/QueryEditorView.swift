@@ -10,108 +10,47 @@ import SwiftUI
 /// SQL 查询编辑器视图 - 现代风格
 struct QueryEditorView: View {
     @ObservedObject var viewModel: QueryViewModel
-    @State private var editorHeight: CGFloat = 160
+    @State private var editorHeight: CGFloat? = nil
     @State private var isDragging = false
-    @State private var showHistory = false
     
     // 计算编辑器应该占用的高度
     private func calculateEditorHeight(geometry: GeometryProxy) -> CGFloat {
+        let availableHeight = geometry.size.height - 40 // 减去 Tab 栏高度
+        
         // 如果没有结果、错误或正在执行，编辑器占据所有可用空间
-        if !viewModel.isExecuting && viewModel.errorMessage == nil && viewModel.queryResult == nil {
-            return geometry.size.height - 60 // 减去工具栏高度
+        if !viewModel.isExecuting && viewModel.errorMessage == nil && viewModel.queryResults.isEmpty {
+            return availableHeight
         }
-        return editorHeight
+        
+        // 如果用户手动调整过高度，使用用户设置的高度
+        if let height = editorHeight {
+            return height
+        }
+        
+        // 首次显示结果时，编辑器占 2/3，结果占 1/3
+        return availableHeight * 2 / 3
     }
     
     var body: some View {
         GeometryReader { geometry in
-            HStack(spacing: 0) {
-                // 主编辑区域
-                VStack(spacing: 0) {
-                    // SQL 编辑区域
-                    VStack(alignment: .leading, spacing: 0) {
-                        // 工具栏
-                        HStack(spacing: DesignSystem.Spacing.md) {
-                        HStack(spacing: DesignSystem.Spacing.sm) {
-                            Image(systemName: "chevron.left.forwardslash.chevron.right")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(DesignSystem.Colors.accent)
-                            
-                            Text("SQL 查询")
-                                .font(DesignSystem.Typography.bodyMedium)
-                                .foregroundColor(DesignSystem.Colors.textPrimary)
-                        }
-                        
-                        Spacer()
-                        
-                        // 工具按钮
-                        HStack(spacing: DesignSystem.Spacing.sm) {
-                            // 历史记录按钮
-                            ToolbarButton(
-                                icon: "clock.arrow.circlepath",
-                                tooltip: "查询历史",
-                                isActive: showHistory
-                            ) {
-                                withAnimation {
-                                    showHistory.toggle()
-                                }
-                            }
-                            
-                            // 格式化按钮
-                            ToolbarButton(icon: "wand.and.stars", tooltip: "格式化 SQL (⌘+Shift+F)") {
-                                viewModel.formatSQL()
-                            }
-                            
-                            Divider()
-                                .frame(height: 16)
-                            
-                            // 执行按钮
-                            Button(action: { viewModel.executeQuery() }) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "play.fill")
-                                        .font(.system(size: 10))
-                                    Text("执行")
-                                        .font(DesignSystem.Typography.captionMedium)
-                                }
-                                .foregroundColor(.white)
-                                .padding(.horizontal, DesignSystem.Spacing.md)
-                                .padding(.vertical, 6)
-                                .background(
-                                    LinearGradient(
-                                        colors: [DesignSystem.Colors.success, DesignSystem.Colors.success.opacity(0.8)],
-                                        startPoint: .top,
-                                        endPoint: .bottom
-                                    )
-                                )
-                                .cornerRadius(DesignSystem.CornerRadius.medium)
-                            }
-                            .buttonStyle(.plain)
-                            .disabled(viewModel.isExecuting)
-                            .keyboardShortcut(.return, modifiers: .command)
-                            .help(viewModel.selectedSQLText.isEmpty ? "执行 SQL 查询 (⌘+Enter)" : "执行选中的 SQL 查询 (⌘+Enter)")
-                        }
-                    }
-                    .padding(.horizontal, DesignSystem.Spacing.lg)
-                    .padding(.vertical, DesignSystem.Spacing.md)
-                    .background(DesignSystem.Colors.background)
-                    
-                    Divider()
-                    
-                    // SQL 编辑器
-                    SQLTextEditor(text: $viewModel.sqlQuery, selectedText: $viewModel.selectedSQLText)
-                        .frame(height: calculateEditorHeight(geometry: geometry))
-                }
+            VStack(spacing: 0) {
+                // Console Tab 栏（包含工具按钮）
+                ConsoleTabBar(viewModel: viewModel)
+                
+                // SQL 编辑器
+                SQLEditorBinding(viewModel: viewModel)
+                    .frame(height: calculateEditorHeight(geometry: geometry))
                 
                 // 只在有结果、错误或正在执行时显示分隔条和结果区域
-                if viewModel.isExecuting || viewModel.errorMessage != nil || viewModel.queryResult != nil {
+                if viewModel.isExecuting || viewModel.errorMessage != nil || !viewModel.queryResults.isEmpty {
                     // 可拖动的分隔条
                     DraggableDivider(isDragging: $isDragging)
                         .gesture(
                             DragGesture()
                                 .onChanged { value in
                                     isDragging = true
-                                    let newHeight = editorHeight + value.translation.height
-                                    // 限制编辑器高度在 100 到 geometry.size.height - 200 之间
+                                    let currentHeight = editorHeight ?? (geometry.size.height - 40) * 2 / 3
+                                    let newHeight = currentHeight + value.translation.height
                                     editorHeight = min(max(newHeight, 100), geometry.size.height - 200)
                                 }
                                 .onEnded { _ in
@@ -119,35 +58,494 @@ struct QueryEditorView: View {
                                 }
                         )
                     
-                    // 结果区域
-                    if viewModel.isExecuting {
-                        LoadingResultsView()
-                    } else if let errorMessage = viewModel.errorMessage {
-                        ErrorResultView(message: errorMessage)
-                    } else if let result = viewModel.queryResult {
-                        QueryResultView(result: result, viewModel: viewModel)
-                    }
+                    // 结果区域（带 Tab）
+                    ResultAreaView(viewModel: viewModel)
                 }
             }
             .background(DesignSystem.Colors.background)
-                
-                // 历史记录面板
-                if showHistory {
-                    Divider()
-                    QueryHistoryView(viewModel: viewModel)
-                }
-            }
         }
         .onAppear {
-            // 注册格式化快捷键
             NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-                // ⌘+Shift+F
                 if event.modifierFlags.contains([.command, .shift]) && event.charactersIgnoringModifiers == "f" {
                     viewModel.formatSQL()
                     return nil
                 }
                 return event
             }
+        }
+    }
+}
+
+/// Console Tab 栏（包含工具按钮）
+struct ConsoleTabBar: View {
+    @ObservedObject var viewModel: QueryViewModel
+    
+    var body: some View {
+        HStack(spacing: 0) {
+            // Console Tabs
+            ForEach(viewModel.consoleTabs) { tab in
+                ConsoleTabButton(
+                    title: tab.displayName,
+                    isSelected: viewModel.selectedConsoleId == tab.id,
+                    showClose: viewModel.consoleTabs.count > 1,
+                    onClose: {
+                        viewModel.closeConsole(id: tab.id)
+                    }
+                ) {
+                    viewModel.selectConsole(id: tab.id)
+                }
+            }
+            
+            // 添加新 Tab 按钮
+            Button(action: { viewModel.addNewConsole() }) {
+                Image(systemName: "plus")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                    .frame(width: 28, height: 28)
+            }
+            .buttonStyle(.plain)
+            .help("新建 SQL Console")
+            
+            Spacer()
+            
+            // 工具按钮（右侧）
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                // 格式化按钮
+                ToolbarButton(icon: "wand.and.stars", tooltip: "格式化 SQL (⌘+Shift+F)") {
+                    viewModel.formatSQL()
+                }
+                
+                Divider()
+                    .frame(height: 16)
+                
+                // 执行按钮
+                Button(action: { viewModel.executeQuery() }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 10))
+                        Text("执行")
+                            .font(DesignSystem.Typography.captionMedium)
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, DesignSystem.Spacing.md)
+                    .padding(.vertical, 6)
+                    .background(
+                        LinearGradient(
+                            colors: [DesignSystem.Colors.success, DesignSystem.Colors.success.opacity(0.8)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .cornerRadius(DesignSystem.CornerRadius.medium)
+                }
+                .buttonStyle(.plain)
+                .disabled(viewModel.isExecuting)
+                .keyboardShortcut(.return, modifiers: .command)
+                .help(viewModel.selectedSQLText.isEmpty ? "执行 SQL 查询 (⌘+Enter)" : "执行选中的 SQL 查询 (⌘+Enter)")
+            }
+            .padding(.trailing, DesignSystem.Spacing.md)
+        }
+        .padding(.leading, DesignSystem.Spacing.md)
+        .frame(height: 36)
+        .background(Color.white)
+        .overlay(
+            Rectangle()
+                .fill(DesignSystem.Colors.border)
+                .frame(height: 1),
+            alignment: .bottom
+        )
+        .zIndex(1)
+    }
+}
+
+/// Console Tab 按钮
+struct ConsoleTabButton: View {
+    let title: String
+    let isSelected: Bool
+    var showClose: Bool = false
+    var onClose: (() -> Void)? = nil
+    let action: () -> Void
+    
+    @State private var isHovering = false
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Text(title)
+                    .font(DesignSystem.Typography.caption)
+                    .fontWeight(isSelected ? .medium : .regular)
+                    .foregroundColor(isSelected ? DesignSystem.Colors.accent : DesignSystem.Colors.textSecondary)
+                
+                // 删除按钮始终显示（当可关闭时）
+                if showClose {
+                    Button(action: { onClose?() }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundColor(DesignSystem.Colors.textMuted)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, DesignSystem.Spacing.sm)
+            .padding(.vertical, DesignSystem.Spacing.sm)
+            .background(
+                VStack(spacing: 0) {
+                    Spacer()
+                    if isSelected {
+                        Rectangle()
+                            .fill(DesignSystem.Colors.accent)
+                            .frame(height: 2)
+                    }
+                }
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            isHovering = hovering
+        }
+    }
+}
+
+/// SQL 编辑器绑定包装器
+struct SQLEditorBinding: View {
+    @ObservedObject var viewModel: QueryViewModel
+    
+    var body: some View {
+        SQLTextEditor(
+            text: Binding(
+                get: { viewModel.sqlQuery },
+                set: { viewModel.sqlQuery = $0 }
+            ),
+            selectedText: Binding(
+                get: { viewModel.selectedSQLText },
+                set: { viewModel.selectedSQLText = $0 }
+            )
+        )
+    }
+}
+
+/// 结果区域视图（包含 Tab 切换）
+struct ResultAreaView: View {
+    @ObservedObject var viewModel: QueryViewModel
+    @State private var showHistory = false
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Tab 栏
+            HStack(spacing: 0) {
+                // 执行历史 Tab（固定在最左边）
+                ResultTabButton(
+                    title: "执行历史",
+                    isSelected: showHistory,
+                    showClose: false
+                ) {
+                    showHistory = true
+                }
+                
+                // 分隔线
+                if !viewModel.queryResults.isEmpty {
+                    Rectangle()
+                        .fill(DesignSystem.Colors.border)
+                        .frame(width: 1, height: 20)
+                        .padding(.horizontal, 4)
+                }
+                
+                // 查询结果 Tabs
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 0) {
+                        ForEach(viewModel.queryResults) { result in
+                            ResultTabButton(
+                                title: "执行结果\(result.number)",
+                                isSelected: !showHistory && viewModel.selectedResultId == result.id,
+                                showClose: true,
+                                onClose: {
+                                    viewModel.closeResult(id: result.id)
+                                }
+                            ) {
+                                showHistory = false
+                                viewModel.selectedResultId = result.id
+                            }
+                        }
+                    }
+                }
+                
+                Spacer()
+                
+                // 右侧信息/操作（仅在结果 Tab 显示）
+                if !showHistory, let result = viewModel.currentResult {
+                    HStack(spacing: DesignSystem.Spacing.md) {
+                        // 行数
+                        HStack(spacing: 4) {
+                            Image(systemName: "list.number")
+                                .font(.system(size: 11))
+                            Text("\(result.result.rowCount) 行")
+                        }
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                        
+                        // 执行时间
+                        HStack(spacing: 4) {
+                            Image(systemName: "clock")
+                                .font(.system(size: 11))
+                            Text(String(format: "%.3f 秒", result.result.executionTime))
+                        }
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                        
+                        // 导出按钮
+                        HStack(spacing: DesignSystem.Spacing.sm) {
+                            ExportButton(title: "CSV", icon: "doc.text", color: DesignSystem.Colors.success) {
+                                exportCSV(result: result.result)
+                            }
+                            
+                            ExportButton(title: "JSON", icon: "curlybraces", color: DesignSystem.Colors.warning) {
+                                exportJSON(result: result.result)
+                            }
+                            
+                            ExportButton(title: "INSERT", icon: "text.insert", color: DesignSystem.Colors.info) {
+                                generateInsert(result: result.result)
+                            }
+                        }
+                    }
+                    .padding(.trailing, DesignSystem.Spacing.lg)
+                }
+            }
+            .padding(.leading, DesignSystem.Spacing.md)
+            .background(DesignSystem.Colors.tableHeader)
+            
+            Divider()
+            
+            // 内容区域
+            if showHistory {
+                // 历史内容
+                ExecutionHistoryListView(viewModel: viewModel)
+            } else if viewModel.isExecuting {
+                LoadingResultsView()
+            } else if let errorMessage = viewModel.errorMessage {
+                ErrorResultView(message: errorMessage)
+            } else if let result = viewModel.currentResult {
+                ResultTableView(result: result.result)
+            } else {
+                // 空状态
+                VStack(spacing: DesignSystem.Spacing.md) {
+                    Image(systemName: "text.magnifyingglass")
+                        .font(.system(size: 32, weight: .light))
+                        .foregroundColor(DesignSystem.Colors.textMuted)
+                    Text("执行查询后结果将显示在这里")
+                        .font(DesignSystem.Typography.body)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    private func exportCSV(result: QueryResult) {
+        let columns = result.columns.map { Column(name: $0, type: .text) }
+        let dataFrame = DataFrame(columns: columns, rows: result.rows)
+        let converter = DataConverter()
+        guard let data = try? converter.convertToCSV(dataFrame: dataFrame) else { return }
+        saveFile(data: data, defaultName: "query_result.csv", fileType: "csv")
+    }
+    
+    private func exportJSON(result: QueryResult) {
+        let columns = result.columns.map { Column(name: $0, type: .text) }
+        let dataFrame = DataFrame(columns: columns, rows: result.rows)
+        let converter = DataConverter()
+        guard let data = try? converter.convertToJSON(dataFrame: dataFrame) else { return }
+        saveFile(data: data, defaultName: "query_result.json", fileType: "json")
+    }
+    
+    private func generateInsert(result: QueryResult) {
+        let columns = result.columns.map { Column(name: $0, type: .text) }
+        let dataFrame = DataFrame(columns: columns, rows: result.rows)
+        let converter = DataConverter()
+        let sql = converter.generateInsertStatements(dataFrame: dataFrame, tableName: "table_name")
+        guard let data = sql.data(using: .utf8) else { return }
+        saveFile(data: data, defaultName: "insert_statements.sql", fileType: "sql")
+    }
+    
+    private func saveFile(data: Data, defaultName: String, fileType: String) {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = defaultName
+        panel.allowedContentTypes = [.init(filenameExtension: fileType)!]
+        
+        if panel.runModal() == .OK, let url = panel.url {
+            try? data.write(to: url)
+        }
+    }
+}
+
+/// 结果区域 Tab 按钮
+struct ResultTabButton: View {
+    let title: String
+    let isSelected: Bool
+    var showClose: Bool = false
+    var onClose: (() -> Void)? = nil
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Text(title)
+                    .font(DesignSystem.Typography.caption)
+                    .fontWeight(isSelected ? .medium : .regular)
+                    .foregroundColor(isSelected ? DesignSystem.Colors.accent : DesignSystem.Colors.textSecondary)
+                
+                if showClose {
+                    Button(action: { onClose?() }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundColor(DesignSystem.Colors.textMuted)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, DesignSystem.Spacing.sm)
+            .padding(.vertical, DesignSystem.Spacing.sm)
+            .background(
+                VStack(spacing: 0) {
+                    Spacer()
+                    if isSelected {
+                        Rectangle()
+                            .fill(DesignSystem.Colors.accent)
+                            .frame(height: 2)
+                    }
+                }
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// 执行历史列表视图（表格样式）
+struct ExecutionHistoryListView: View {
+    @ObservedObject var viewModel: QueryViewModel
+    @State private var histories: [QueryHistory] = []
+    
+    var body: some View {
+        GeometryReader { geometry in
+            if histories.isEmpty {
+                // 空状态
+                VStack(spacing: DesignSystem.Spacing.md) {
+                    Image(systemName: "clock.badge.questionmark")
+                        .font(.system(size: 32, weight: .light))
+                        .foregroundColor(DesignSystem.Colors.textMuted)
+                    
+                    Text("暂无执行历史")
+                        .font(DesignSystem.Typography.body)
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.white)
+            } else {
+                // 表格 - 使用与 ResultTableView 相同的布局方式
+                ScrollView([.horizontal, .vertical], showsIndicators: true) {
+                    LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+                        Section(header: historyTableHeader) {
+                            ForEach(histories) { history in
+                                HistoryTableRow(
+                                    history: history,
+                                    onLoad: {
+                                        viewModel.loadQueryFromHistory(history)
+                                    }
+                                )
+                            }
+                        }
+                    }
+                    .frame(minWidth: geometry.size.width, minHeight: geometry.size.height, alignment: .topLeading)
+                }
+                .background(Color.white)
+            }
+        }
+        .onAppear { refreshHistories() }
+    }
+    
+    private var historyTableHeader: some View {
+        HStack(spacing: 0) {
+            Text("执行时间")
+                .frame(width: 150, alignment: .leading)
+            Text("SQL")
+                .frame(width: 400, alignment: .leading)
+            Text("状态")
+                .frame(width: 70, alignment: .center)
+            Text("行数")
+                .frame(width: 80, alignment: .trailing)
+            Text("耗时")
+                .frame(width: 80, alignment: .trailing)
+            Text("操作")
+                .frame(width: 60, alignment: .center)
+        }
+        .font(.system(size: 11, weight: .medium))
+        .foregroundColor(DesignSystem.Colors.textSecondary)
+        .padding(.horizontal, DesignSystem.Spacing.md)
+        .padding(.vertical, DesignSystem.Spacing.sm)
+        .background(DesignSystem.Colors.tableHeader)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    
+    private func refreshHistories() {
+        histories = viewModel.getQueryHistories()
+    }
+}
+
+/// 历史记录表格行
+struct HistoryTableRow: View {
+    let history: QueryHistory
+    let onLoad: () -> Void
+    
+    @State private var isHovering = false
+    
+    var body: some View {
+        HStack(spacing: 0) {
+            // 执行时间
+            Text(history.formattedDateFull)
+                .frame(width: 150, alignment: .leading)
+            
+            // SQL（双击加载）
+            Text(history.preview)
+                .frame(width: 400, alignment: .leading)
+                .lineLimit(1)
+                .help(history.query)
+            
+            // 状态
+            HStack(spacing: 4) {
+                Circle()
+                    .fill(history.isSuccess ? DesignSystem.Colors.success : DesignSystem.Colors.error)
+                    .frame(width: 8, height: 8)
+                Text(history.isSuccess ? "成功" : "失败")
+            }
+            .frame(width: 70, alignment: .center)
+            
+            // 行数
+            Text(history.rowCount != nil ? "\(history.rowCount!)" : "-")
+                .frame(width: 80, alignment: .trailing)
+            
+            // 耗时
+            Text(history.formattedExecutionTimeMs)
+                .frame(width: 80, alignment: .trailing)
+            
+            // 操作
+            Button(action: onLoad) {
+                Text("加载")
+                    .font(.system(size: 10))
+                    .foregroundColor(DesignSystem.Colors.accent)
+            }
+            .buttonStyle(.plain)
+            .frame(width: 60, alignment: .center)
+        }
+        .font(.system(size: 11, design: .monospaced))
+        .foregroundColor(DesignSystem.Colors.textPrimary)
+        .padding(.horizontal, DesignSystem.Spacing.md)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(isHovering ? DesignSystem.Colors.tableRowHover : Color.white)
+        .onHover { hovering in
+            isHovering = hovering
+        }
+        .onTapGesture(count: 2) {
+            onLoad()
         }
     }
 }
@@ -284,91 +682,6 @@ struct EmptyResultView: View {
     }
 }
 
-/// 查询结果视图
-struct QueryResultView: View {
-    let result: QueryResult
-    @ObservedObject var viewModel: QueryViewModel
-    
-    var body: some View {
-        VStack(spacing: 0) {
-            // 结果信息栏
-            HStack {
-                HStack(spacing: DesignSystem.Spacing.md) {
-                    // 行数
-                    HStack(spacing: 4) {
-                        Image(systemName: "list.number")
-                            .font(.system(size: 11))
-                        Text("\(result.rowCount) 行")
-                    }
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.textSecondary)
-                    
-                    // 执行时间
-                    HStack(spacing: 4) {
-                        Image(systemName: "clock")
-                            .font(.system(size: 11))
-                        Text(String(format: "%.3f 秒", result.executionTime))
-                    }
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.textSecondary)
-                }
-                
-                Spacer()
-                
-                // 导出按钮
-                HStack(spacing: DesignSystem.Spacing.sm) {
-                    ExportButton(title: "CSV", icon: "doc.text", color: DesignSystem.Colors.success) {
-                        exportCSV()
-                    }
-                    
-                    ExportButton(title: "JSON", icon: "curlybraces", color: DesignSystem.Colors.warning) {
-                        exportJSON()
-                    }
-                    
-                    ExportButton(title: "INSERT", icon: "text.insert", color: DesignSystem.Colors.info) {
-                        generateInsert()
-                    }
-                }
-            }
-            .padding(.horizontal, DesignSystem.Spacing.lg)
-            .padding(.vertical, DesignSystem.Spacing.sm)
-            .background(DesignSystem.Colors.tableHeader)
-            
-            Divider()
-            
-            // 使用 List 实现固定表头的表格
-            ResultTableView(result: result)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-    }
-    
-    private func exportCSV() {
-        guard let data = viewModel.exportToCSV() else { return }
-        saveFile(data: data, defaultName: "query_result.csv", fileType: "csv")
-    }
-    
-    private func exportJSON() {
-        guard let data = viewModel.exportToJSON() else { return }
-        saveFile(data: data, defaultName: "query_result.json", fileType: "json")
-    }
-    
-    private func generateInsert() {
-        guard let sql = viewModel.generateInsertStatements(tableName: "table_name") else { return }
-        guard let data = sql.data(using: .utf8) else { return }
-        saveFile(data: data, defaultName: "insert_statements.sql", fileType: "sql")
-    }
-    
-    private func saveFile(data: Data, defaultName: String, fileType: String) {
-        let panel = NSSavePanel()
-        panel.nameFieldStringValue = defaultName
-        panel.allowedContentTypes = [.init(filenameExtension: fileType)!]
-        
-        if panel.runModal() == .OK, let url = panel.url {
-            try? data.write(to: url)
-        }
-    }
-}
-
 /// 导出按钮
 struct ExportButton: View {
     let title: String
@@ -409,6 +722,7 @@ struct ResultHeaderCell: View {
         Text(text)
             .font(.system(size: 11, weight: .semibold))
             .foregroundColor(DesignSystem.Colors.textPrimary)
+            .textSelection(.enabled)
             .frame(minWidth: 100, maxWidth: 200, alignment: .leading)
             .padding(.horizontal, DesignSystem.Spacing.md)
             .padding(.vertical, DesignSystem.Spacing.sm)
@@ -465,6 +779,7 @@ struct ResultDataCell: View {
             .font(DesignSystem.Typography.code)
             .italic(isNull)
             .foregroundColor(isNull ? DesignSystem.Colors.textMuted : DesignSystem.Colors.textPrimary)
+            .textSelection(.enabled)
             .frame(minWidth: 100, maxWidth: 200, alignment: alignment)
             .padding(.horizontal, DesignSystem.Spacing.md)
             .padding(.vertical, 6)

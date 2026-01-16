@@ -47,9 +47,9 @@ struct MainView: View {
             }
             .frame(width: 240)
             
-            // 分隔线
+            // 分隔线（独立元素，占用自己的空间）
             Rectangle()
-                .fill(Color.black.opacity(0.15))
+                .fill(DesignSystem.Colors.border)
                 .frame(width: 1)
             
             // 第三栏：主内容区域
@@ -86,7 +86,17 @@ struct MainView: View {
     
     private func loadAllTablesToQueryEngine() {
         for table in viewModel.loadedTables {
-            queryViewModel.loadTable(name: table.name, dataFrame: table.dataFrame)
+            // 跳过已经是 ready 或 error 状态的表
+            if table.status.isReady || table.status.isError { continue }
+            
+            // 尝试加载到 DuckDB
+            if let errorMsg = queryViewModel.loadTable(name: table.name, dataFrame: table.dataFrame) {
+                // 加载失败，更新状态
+                viewModel.updateTableStatus(name: table.name, status: .error(errorMsg))
+            } else {
+                // 加载成功
+                viewModel.updateTableStatus(name: table.name, status: .ready)
+            }
         }
     }
     
@@ -136,6 +146,8 @@ enum DataFormatType: String, CaseIterable {
     case ip = "IP"
     case timestamp = "时间戳"
     case text = "文本"
+    case markdown = "Markdown"
+    case pdf = "PDF"
     case other = "其他"
     case settings = "设置"
     
@@ -146,6 +158,8 @@ enum DataFormatType: String, CaseIterable {
         case .ip: return "network"
         case .timestamp: return "clock"
         case .text: return "doc.text"
+        case .markdown: return "text.document"
+        case .pdf: return "doc.richtext"
         case .other: return "square.grid.2x2"
         case .settings: return "gearshape"
         }
@@ -181,6 +195,14 @@ enum DataFormatType: String, CaseIterable {
                 ProcessingMethod(id: "url", name: "URL 编码", icon: "link", description: "URL 编码/解码"),
                 ProcessingMethod(id: "hash", name: "Hash", icon: "number", description: "MD5/SHA 计算"),
                 ProcessingMethod(id: "diff", name: "文本对比", icon: "arrow.left.arrow.right", description: "对比两段文本差异")
+            ]
+        case .markdown:
+            return [
+                ProcessingMethod(id: "preview", name: "预览", icon: "eye", description: "实时渲染 Markdown")
+            ]
+        case .pdf:
+            return [
+                ProcessingMethod(id: "toText", name: "转文本", icon: "doc.plaintext", description: "提取 PDF 中的文本")
             ]
         case .other:
             return [
@@ -379,6 +401,22 @@ struct ProcessingContentView: View {
                         ComingSoonView(format: format, method: method)
                     }
                     
+                case .markdown:
+                    switch method.id {
+                    case "preview":
+                        MarkdownPreviewView()
+                    default:
+                        ComingSoonView(format: format, method: method)
+                    }
+                    
+                case .pdf:
+                    switch method.id {
+                    case "toText":
+                        PDFToTextView()
+                    default:
+                        ComingSoonView(format: format, method: method)
+                    }
+                    
                 default:
                     // 其他格式暂未实现
                     ComingSoonView(format: format, method: method)
@@ -552,14 +590,14 @@ struct DataFormatSidebar: View {
             // 数据格式图标
             ScrollView {
                 VStack(spacing: DesignSystem.Spacing.xs) {
-                    ForEach([DataFormatType.tables, .json, .ip, .timestamp, .text, .other], id: \.self) { format in
+                    ForEach([DataFormatType.tables, .json, .ip, .timestamp, .text, .markdown, .pdf, .other], id: \.self) { format in
                         DataFormatIconButton(
                             format: format,
                             isSelected: selectedFormat == format,
                             action: {
                                 selectedFormat = format
-                                // 切换格式时清除选中的处理方式
-                                selectedMethod = nil
+                                // 切换格式时自动选择第一个处理方式
+                                selectedMethod = format.processingMethods.first
                             }
                         )
                     }
