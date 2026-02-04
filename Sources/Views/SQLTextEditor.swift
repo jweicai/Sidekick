@@ -71,6 +71,9 @@ struct SQLTextEditor: NSViewRepresentable {
         // 设置代理
         textView.delegate = context.coordinator
         
+        // 确保可以成为第一响应者
+        textView.window?.makeFirstResponder(textView)
+        
         // 配置滚动视图
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = false

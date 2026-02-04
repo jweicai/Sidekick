@@ -1,10 +1,30 @@
 # Sidekick
 
-你的开发助手 - 集数据查询、格式转换、开发工具于一体的 macOS 应用
+<div align="center">
 
-## 简介
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Platform](https://img.shields.io/badge/platform-macOS%2014%2B-orange.svg)
+![Swift](https://img.shields.io/badge/swift-5.9+-red.svg)
+![Build](https://img.shields.io/badge/build-passing-brightgreen.svg)
 
-Sidekick 是一款为 macOS 开发者打造的多功能工具箱，集成了数据查询、格式转换、编码工具等常用功能。无论是 SQL 查询、JSON 处理、时间戳转换还是 IP 地址计算，Sidekick 都能帮你快速完成。
+**你的开发助手 - 集数据查询、格式转换、开发工具于一体的开源 macOS 应用**
+
+[功能特性](#核心功能) • [快速开始](#快速开始) • [贡献指南](CONTRIBUTING.md) • [更新日志](#更新日志)
+
+</div>
+
+---
+
+## ✨ 简介
+
+Sidekick 是一款**完全免费开源**的 macOS 开发者工具箱，集成了数据查询、格式转换、编码工具等常用功能。无论是 SQL 查询、JSON 处理、时间戳转换还是 IP 地址计算，Sidekick 都能帮你快速完成。
+
+**为什么选择 Sidekick？**
+- 🆓 **完全免费** - 开源 MIT 许可证，无任何限制
+- 🔒 **隐私优先** - 所有数据在本地处理，不上传云端
+- ⚡ **原生性能** - Swift + SwiftUI 构建，原生 macOS 体验
+- 🎯 **专注实用** - 集成开发者最常用的工具，一站式解决
+- 🌏 **中文友好** - 完整的中文界面和文档
 
 ## 核心功能
 
@@ -229,42 +249,104 @@ GROUP BY u.id, u.name, u.city
 ORDER BY 总金额 DESC;
 ```
 
-## 技术架构
+## 🏗️ 技术架构
 
 - **Swift + SwiftUI**: 现代 Mac 应用开发
-- **SQLite**: 内存数据库，支持完整 SQL 功能
+- **DuckDB**: 高性能分析数据库，支持完整 SQL 功能
 - **MVVM 架构**: 清晰的代码组织结构
-- **属性测试**: 78 个测试确保代码质量
+- **完善测试**: 确保代码质量
 
-### 技术难点
+### 项目结构
 
-项目开发过程中遇到的主要技术难点是 **SwiftUI macOS 应用的键盘输入问题**。
+```
+Sidekick/
+├── Sources/
+│   ├── App/              # 应用入口
+│   ├── Models/           # 数据模型
+│   ├── Views/            # UI 视图
+│   ├── ViewModels/       # 视图模型
+│   ├── Services/         # 业务逻辑
+│   │   ├── FileLoader/   # 文件加载器
+│   │   ├── SQLEngine/    # SQL 引擎
+│   │   └── Tools/        # 工具服务
+│   └── Utilities/        # 工具类
+├── Tests/                # 单元测试
+├── docs/                 # 项目文档
+└── sample_data/          # 示例数据
+```
 
-**问题**: Swift Package Manager 构建的 SwiftUI 应用默认使用 `.accessory` 激活策略，导致应用无法正确接收键盘输入。
+### 技术亮点
 
-**解决方案**: 使用 `@NSApplicationDelegateAdaptor` 添加 AppDelegate，并设置 `NSApp.setActivationPolicy(.regular)`。
+项目开发过程中解决的技术难点：
 
-详细的排查过程和解决方案请参考：
+**SwiftUI macOS 键盘输入问题**: Swift Package Manager 构建的 SwiftUI 应用默认使用 `.accessory` 激活策略，导致应用无法正确接收键盘输入。通过使用 `@NSApplicationDelegateAdaptor` 添加 AppDelegate 并设置 `NSApp.setActivationPolicy(.regular)` 解决。
+
+详细技术文档：
 - [SwiftUI键盘输入问题解决方案](docs/项目难点记录/SwiftUI键盘输入问题解决方案.md)
 - [SwiftUI键盘输入问题排查记录](docs/项目难点记录/SwiftUI键盘输入问题排查记录.md)
 
-## 系统要求
+## 📋 系统要求
 
 - macOS 14.0 或更高版本
 - Xcode 15.0 或更高版本（开发）
 - Swift 5.9 或更高版本
 
-## 许可证
+## 🤝 贡献
 
-MIT License
+我们欢迎任何形式的贡献！无论是报告 Bug、提出新功能建议还是提交代码，都请参阅我们的 [贡献指南](CONTRIBUTING.md)。
 
-## 贡献
+### 如何贡献
 
-欢迎提交 Issue 和 Pull Request！
+1. Fork 本仓库
+2. 创建你的特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交你的更改 (`git commit -m 'feat: add some amazing feature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 开启一个 Pull Request
+
+### 贡献者
+
+感谢所有为 Sidekick 做出贡献的开发者！
+
+## 📝 更新日志
+
+查看 [CHANGELOG.md](CHANGELOG.md) 了解版本历史和更新内容。
+
+## 📄 许可证
+
+本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
+
+这意味着你可以：
+- ✅ 自由使用、复制、修改、合并、发布、分发本软件
+- ✅ 用于商业目的
+- ✅ 用于私人用途
+
+唯一的要求是保留版权声明和许可证声明。
+
+## 🌟 Star History
+
+如果这个项目对你有帮助，请给它一个 ⭐️！这对我们是极大的鼓励。
+
+## 💬 社区与支持
+
+- **提交 Bug**: [GitHub Issues](https://github.com/your-username/Sidekick/issues)
+- **功能建议**: [GitHub Issues](https://github.com/your-username/Sidekick/issues)
+- **讨论交流**: [GitHub Discussions](https://github.com/your-username/Sidekick/discussions)
+
+## 🙏 致谢
+
+- [DuckDB](https://duckdb.org/) - 强大的分析数据库
+- [CoreXLSX](https://github.com/CoreOffice/CoreXLSX) - Excel 文件解析
+- 所有贡献者和使用者
 
 ---
 
+<div align="center">
+
 **Sidekick - Your Coding Companion** 🚀
+
+用 ❤️ 打造 | [GitHub](https://github.com/your-username/Sidekick) | [贡献](CONTRIBUTING.md) | [许可证](LICENSE)
+
+</div>
 
 ## 故障排除
 

@@ -225,7 +225,10 @@ struct TableRowView: View {
                     .fill(rowBackgroundColor)
             )
             .contentShape(Rectangle())
-            .onTapGesture(perform: onSelect)
+            .onTapGesture {
+                onSelect()
+            }
+            .simultaneousGesture(TapGesture().onEnded { _ in })
             .onHover { hovering in
                 withAnimation(.easeInOut(duration: DesignSystem.Animation.fast)) {
                     isHovering = hovering

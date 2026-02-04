@@ -208,7 +208,8 @@ enum DataFormatType: String, CaseIterable {
             return [
                 ProcessingMethod(id: "uuid", name: "UUID", icon: "key", description: "生成 UUID"),
                 ProcessingMethod(id: "color", name: "颜色转换", icon: "paintpalette", description: "HEX ↔ RGB"),
-                ProcessingMethod(id: "regex", name: "正则测试", icon: "text.magnifyingglass", description: "正则表达式测试")
+                ProcessingMethod(id: "regex", name: "正则测试", icon: "text.magnifyingglass", description: "正则表达式测试"),
+                ProcessingMethod(id: "translate", name: "翻译", icon: "globe", description: "文本翻译工具")
             ]
         case .settings:
             return [] // 设置不需要处理方式列表
@@ -397,6 +398,8 @@ struct ProcessingContentView: View {
                         ColorConverterView()
                     case "regex":
                         RegexTesterView()
+                    case "translate":
+                        TranslateView()
                     default:
                         ComingSoonView(format: format, method: method)
                     }
@@ -755,11 +758,6 @@ struct SettingsView: View {
             // 设置列表
             ScrollView {
                 VStack(spacing: 0) {
-                    // 许可证信息
-                    SettingsSection(title: "许可证") {
-                        LicenseInfoView()
-                    }
-                    
                     // 通用设置
                     SettingsSection(title: "通用") {
                         SettingsToggle(
@@ -900,114 +898,6 @@ struct SettingsToggle: View {
         }
         .padding(.horizontal, DesignSystem.Spacing.md)
         .padding(.vertical, DesignSystem.Spacing.sm)
-    }
-}
-
-// MARK: - 许可证信息视图
-
-struct LicenseInfoView: View {
-    @StateObject private var licenseManager = LicenseManager.shared
-    @State private var showActivationSheet = false
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("许可证状态")
-                        .font(DesignSystem.Typography.body)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                    
-                    HStack(spacing: 4) {
-                        Image(systemName: licenseIcon)
-                            .font(.system(size: 12))
-                            .foregroundColor(licenseColor)
-                        
-                        Text(licenseStatus)
-                            .font(DesignSystem.Typography.bodyMedium)
-                            .foregroundColor(licenseColor)
-                    }
-                }
-                
-                Spacer()
-                
-                if !licenseManager.isActivated {
-                    Button(action: {
-                        showActivationSheet = true
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "key.fill")
-                                .font(.system(size: 10))
-                            Text("激活")
-                                .font(DesignSystem.Typography.caption)
-                        }
-                        .foregroundColor(.white)
-                        .padding(.horizontal, DesignSystem.Spacing.sm)
-                        .padding(.vertical, 6)
-                        .background(licenseManager.isExpired ? Color.red : DesignSystem.Colors.accent)
-                        .cornerRadius(DesignSystem.CornerRadius.small)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            
-            Divider()
-                .padding(.vertical, DesignSystem.Spacing.xs)
-            
-            // 试用期信息或激活信息
-            if licenseManager.isActivated {
-                VStack(alignment: .leading, spacing: 6) {
-                    LimitRow(icon: "checkmark.circle.fill", title: "状态", value: "已激活")
-                    if !licenseManager.licenseEmail.isEmpty {
-                        LimitRow(icon: "envelope.fill", title: "邮箱", value: licenseManager.licenseEmail)
-                    }
-                    LimitRow(icon: "infinity", title: "使用期限", value: "永久")
-                }
-            } else {
-                VStack(alignment: .leading, spacing: 6) {
-                    LimitRow(
-                        icon: licenseManager.isExpired ? "xmark.circle.fill" : "clock.fill",
-                        title: "试用期",
-                        value: licenseManager.isExpired ? "已过期" : "剩余 \(licenseManager.trialDaysRemaining) 天"
-                    )
-                    LimitRow(icon: "calendar", title: "试用时长", value: "90 天")
-                }
-            }
-        }
-        .padding(.horizontal, DesignSystem.Spacing.md)
-        .padding(.vertical, DesignSystem.Spacing.sm)
-        .sheet(isPresented: $showActivationSheet) {
-            ActivationView()
-        }
-    }
-    
-    private var licenseIcon: String {
-        if licenseManager.isActivated {
-            return "checkmark.seal.fill"
-        } else if licenseManager.isExpired {
-            return "xmark.seal.fill"
-        } else {
-            return "clock.fill"
-        }
-    }
-    
-    private var licenseColor: Color {
-        if licenseManager.isActivated {
-            return DesignSystem.Colors.success
-        } else if licenseManager.isExpired {
-            return DesignSystem.Colors.error
-        } else {
-            return DesignSystem.Colors.warning
-        }
-    }
-    
-    private var licenseStatus: String {
-        if licenseManager.isActivated {
-            return "已激活"
-        } else if licenseManager.isExpired {
-            return "试用期已过期"
-        } else {
-            return "试用中"
-        }
     }
 }
 
