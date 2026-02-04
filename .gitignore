@@ -91,3 +91,10 @@ iOSInjectionProject/
 
 # macOS
 .DS_Store
+
+# Release builds
+Sidekick.app/
+*.dmg
+dmg_temp/
+release-build/
+ cat .gitignore
